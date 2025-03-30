@@ -1,8 +1,8 @@
-# Diseño de Travel Planner
+# Diseño de FlyAway - Base de Datos
 
-## Arquitectura
+## Arquitectura General
 
-La aplicación sigue el patrón de arquitectura MVVM (Model-View-ViewModel) junto con Clean Architecture para mantener un código limpio y mantenible.
+La aplicación sigue el patrón de arquitectura MVVM (Model-View-ViewModel) junto con Clean Architecture para mantener un código limpio y mantenible. La base de datos es un componente fundamental que implementa la capa de persistencia de datos.
 
 ### Capas de la Aplicación
 
@@ -19,102 +19,209 @@ La aplicación sigue el patrón de arquitectura MVVM (Model-View-ViewModel) junt
 
 3. **Datos**
    - Implementaciones de Repositorio
-   - Fuentes de Datos
+   - Base de Datos Room
    - Modelos de Datos
 
-## Modelo de Datos
+## Diseño de la Base de Datos
 
-```mermaid
-classDiagram
-    class Trip {
-        +String id
-        +String name
-        +String description
-        +Date startDate
-        +Date endDate
-        +List<Destination> destinations
-        +Budget budget
-    }
+### 1. Estructura General
 
-    class Destination {
-        +String id
-        +String name
-        +String location
-        +List<Activity> activities
-        +Accommodation accommodation
-    }
+La base de datos está implementada utilizando Room, que es una biblioteca de persistencia proporcionada por Android Jetpack. Room actúa como una capa de abstracción sobre SQLite, ofreciendo:
 
-    class Activity {
-        +String id
-        +String name
-        +String description
-        +DateTime startTime
-        +DateTime endTime
-        +Location location
-        +Double cost
-    }
+- Verificación de tipos en tiempo de compilación
+- Soporte para corrutinas y Flow
+- Integración con LiveData
+- Anotaciones para simplificar el código
 
-    class Accommodation {
-        +String id
-        +String name
-        +String address
-        +Double cost
-        +DateTime checkIn
-        +DateTime checkOut
-    }
+### 2. Configuración de la Base de Datos
 
-    class Budget {
-        +Double total
-        +Double spent
-        +String currency
-        +List<Expense> expenses
-    }
+La base de datos está definida en la clase `FlyAwayDatabase`:
 
-    class Expense {
-        +String id
-        +String description
-        +Double amount
-        +Date date
-        +String category
-    }
-
-    class User {
-        +String id
-        +String name
-        +String email
-        +List<Trip> trips
-        +UserPreferences preferences
-    }
-
-    Trip "1" *-- "many" Destination
-    Destination "1" *-- "many" Activity
-    Destination "1" *-- "1" Accommodation
-    Trip "1" *-- "1" Budget
-    Budget "1" *-- "many" Expense
-    User "1" *-- "many" Trip
+```kotlin
+@Database(
+    entities = [TripEntity::class, DayEntity::class, ActivityEntity::class],
+    version = 1,
+    exportSchema = false
+)
+@TypeConverters(Converters::class)
+abstract class FlyAwayDatabase : RoomDatabase() {
+    abstract fun tripDao(): TripDao
+    abstract fun dayDao(): DayDao
+    abstract fun activityDao(): ActivityDao
+}
 ```
 
-## Tecnologías Principales
+### 3. Modelo de Datos
 
-1. **UI/UX**
-   - Jetpack Compose
-   - Material Design 3
-   - Navigation Component
+La base de datos está estructurada en tres tablas principales:
 
-2. **Persistencia de Datos**
+#### Tabla: trips
+```kotlin
+@Entity(tableName = "trips")
+data class TripEntity(
+    @PrimaryKey
+    val id: String,
+    val name: String,
+    val destination: String,
+    val startDate: LocalDate,
+    val endDate: LocalDate,
+    val createdAt: LocalDate
+)
+```
+
+#### Tabla: days
+```kotlin
+@Entity(tableName = "days")
+data class DayEntity(
+    @PrimaryKey
+    val id: String,
+    val tripId: String,
+    val date: LocalDate,
+    val dayNumber: Int
+)
+```
+
+#### Tabla: activities
+```kotlin
+@Entity(tableName = "activities")
+data class ActivityEntity(
+    @PrimaryKey
+    val id: String,
+    val dayId: String,
+    val name: String,
+    val description: String,
+    val startTime: LocalTime,
+    val endTime: LocalTime?,
+    val location: String
+)
+```
+
+### 4. Acceso a Datos (DAOs)
+
+Cada entidad tiene su propio DAO que define las operaciones de base de datos:
+
+#### TripDao
+```kotlin
+@Dao
+interface TripDao {
+    @Query("SELECT * FROM trips")
+    fun getAllTrips(): Flow<List<TripEntity>>
+    
+    @Query("SELECT * FROM trips WHERE id = :tripId")
+    fun getTripById(tripId: String): Flow<TripEntity?>
+    
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertTrip(trip: TripEntity)
+    
+    @Delete
+    suspend fun deleteTrip(trip: TripEntity)
+}
+```
+
+### 5. Conversión de Tipos
+
+Room no puede almacenar directamente tipos complejos como `LocalDate` y `LocalTime`. Se implementan conversores personalizados:
+
+```kotlin
+class Converters {
+    @TypeConverter
+    fun fromTimestamp(value: Long?): LocalDate? {
+        return value?.let { LocalDate.ofEpochDay(it) }
+    }
+
+    @TypeConverter
+    fun dateToTimestamp(date: LocalDate?): Long? {
+        return date?.toEpochDay()
+    }
+
+    @TypeConverter
+    fun fromString(value: String?): LocalTime? {
+        return value?.let { LocalTime.parse(it) }
+    }
+
+    @TypeConverter
+    fun toString(time: LocalTime?): String? {
+        return time?.toString()
+    }
+}
+```
+
+### 6. Repositorio
+
+El repositorio actúa como una capa de abstracción entre la base de datos y el resto de la aplicación:
+
+```kotlin
+@Singleton
+class TripRepositoryImpl @Inject constructor(
+    private val tripDao: TripDao,
+    private val dayDao: DayDao,
+    private val activityDao: ActivityDao
+) : TripRepository {
+    // Implementación de los métodos del repositorio
+}
+```
+
+### 7. Flujo de Datos
+
+#### Lectura de Datos
+1. El ViewModel solicita datos al repositorio
+2. El repositorio utiliza los DAOs para obtener los datos
+3. Los datos se convierten de entidades a modelos de dominio
+4. Los datos se emiten como Flow para actualizar la UI
+
+#### Escritura de Datos
+1. El ViewModel envía datos al repositorio
+2. El repositorio convierte los modelos de dominio a entidades
+3. Los DAOs realizan las operaciones de inserción/actualización/eliminación
+4. Los cambios se reflejan automáticamente en los Flows observables
+
+### 8. Relaciones y Restricciones
+
+- Las relaciones entre tablas se manejan mediante claves foráneas
+- Se implementa eliminación en cascada para mantener la integridad referencial
+- Las operaciones que afectan a múltiples tablas se realizan dentro de transacciones
+
+### 9. Manejo de Errores
+
+- Se implementa manejo de errores en el repositorio
+- Se utilizan transacciones para operaciones complejas
+- Se valida la integridad de los datos antes de la inserción
+- Se registran los errores para facilitar la depuración
+
+### 10. Migración de Base de Datos
+
+Para futuras actualizaciones del esquema:
+
+1. Incrementar el número de versión en la anotación @Database
+2. Crear una clase de migración que extienda Migration
+3. Implementar la lógica de migración en el método migrate()
+4. Registrar la migración en el DatabaseModule
+
+### 11. Validación de Datos
+
+- Los IDs son generados usando UUID para garantizar unicidad
+- Las fechas de fin deben ser posteriores a las fechas de inicio
+- Los nombres de viajes no pueden estar vacíos
+- Las actividades deben tener un nombre y una ubicación
+- Las horas de fin son opcionales pero deben ser posteriores a las horas de inicio si se especifican
+
+## Tecnologías Utilizadas
+
+1. **Base de Datos**
    - Room Database
-   - DataStore Preferences
+   - SQLite (subyacente)
 
-3. **Inyección de Dependencias**
+2. **Inyección de Dependencias**
    - Dagger Hilt
 
-4. **Concurrencia**
+3. **Concurrencia**
    - Coroutines
    - Flow
 
-5. **Networking**
-   - Retrofit
-   - OkHttp
+4. **UI/UX**
+   - Jetpack Compose
+   - Material Design 3
+   - Navigation Component
 
 ## Patrones de Diseño
 
@@ -137,79 +244,4 @@ classDiagram
 
 3. **UI Tests**
    - Compose UI Testing
-   - End-to-End Tests
-
-# Diseño de la Base de Datos
-
-## Esquema de la Base de Datos
-
-La aplicación utiliza Room como capa de abstracción sobre SQLite para el almacenamiento persistente de datos. El esquema de la base de datos está compuesto por tres tablas principales:
-
-### Tabla: trips
-- **id** (String, Primary Key): Identificador único del viaje
-- **name** (String): Nombre del viaje
-- **destination** (String): Destino del viaje
-- **startDate** (LocalDate): Fecha de inicio del viaje
-- **endDate** (LocalDate): Fecha de fin del viaje
-- **createdAt** (LocalDate): Fecha de creación del viaje
-
-### Tabla: days
-- **id** (String, Primary Key): Identificador único del día
-- **tripId** (String, Foreign Key): Referencia al viaje al que pertenece el día
-- **date** (LocalDate): Fecha del día
-- **dayNumber** (Integer): Número de día en el viaje
-
-### Tabla: activities
-- **id** (String, Primary Key): Identificador único de la actividad
-- **dayId** (String, Foreign Key): Referencia al día al que pertenece la actividad
-- **name** (String): Nombre de la actividad
-- **description** (String): Descripción de la actividad
-- **startTime** (LocalTime): Hora de inicio de la actividad
-- **endTime** (LocalTime, Nullable): Hora de fin de la actividad (opcional)
-- **location** (String): Ubicación de la actividad
-
-## Relaciones
-
-- Un viaje (Trip) puede tener múltiples días (Days) - Relación 1:N
-- Un día (Day) puede tener múltiples actividades (Activities) - Relación 1:N
-- Las relaciones están implementadas usando claves foráneas con eliminación en cascada
-
-## Conversores de Tipos
-
-Se han implementado conversores personalizados para manejar los tipos de datos LocalDate y LocalTime:
-- LocalDate se almacena como Long (días desde la época)
-- LocalTime se almacena como String (formato ISO-8601)
-
-## Estrategia de Migración
-
-Actualmente, la base de datos está en su versión 1. Para futuras actualizaciones del esquema:
-
-1. Incrementar el número de versión en la anotación @Database
-2. Crear una clase de migración que extienda Migration
-3. Implementar la lógica de migración en el método migrate()
-4. Registrar la migración en el DatabaseModule
-
-Ejemplo de migración futura:
-
-```kotlin
-val MIGRATION_1_2 = object : Migration(1, 2) {
-    override fun migrate(database: SupportSQLiteDatabase) {
-        // Lógica de migración
-    }
-}
-```
-
-## Validación de Datos
-
-- Los IDs son generados usando UUID para garantizar unicidad
-- Las fechas de fin deben ser posteriores a las fechas de inicio
-- Los nombres de viajes no pueden estar vacíos
-- Las actividades deben tener un nombre y una ubicación
-- Las horas de fin son opcionales pero deben ser posteriores a las horas de inicio si se especifican
-
-## Manejo de Errores
-
-- Uso de transacciones para operaciones que afectan a múltiples tablas
-- Validación de datos antes de la inserción
-- Manejo de errores de base de datos en el repositorio
-- Logging de operaciones de base de datos para depuración 
+   - End-to-End Tests 
