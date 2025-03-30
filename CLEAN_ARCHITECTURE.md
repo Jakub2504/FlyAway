@@ -2,38 +2,6 @@
 
 Este documento describe la nueva arquitectura Clean+MVVM implementada en la aplicación FlyAway, explicando los principios de diseño, la estructura del proyecto y las responsabilidades de cada capa.
 
-## Estructura del Proyecto
-
-```
-com.example.flyaway/
-│
-├── data/                  # Capa de datos
-│   ├── local/             # Fuentes de datos locales (Room, SharedPreferences)
-│   ├── remote/            # Fuentes de datos remotas (Retrofit, Firebase)
-│   ├── repository/        # Implementaciones de repositorio
-│   └── mapper/            # Mappers entre modelos de dominio y modelos de datos
-│
-├── domain/                # Capa de dominio (reglas de negocio)
-│   ├── model/             # Modelos/entidades de dominio
-│   ├── repository/        # Interfaces de repositorio
-│   └── usecase/           # Casos de uso
-│       ├── trip/
-│       ├── day/
-│       └── activity/
-│
-├── presentation/          # Capa de presentación (UI)
-│   ├── home/              # Componentes de la pantalla de inicio
-│   ├── tripdetails/       # Componentes de la pantalla de detalles de viaje
-│   ├── createtrip/        # Componentes para crear/editar viajes
-│   └── common/            # Componentes UI compartidos
-│
-├── di/                    # Módulos de inyección de dependencias
-├── ui/                    # Recursos UI (tema, colores, etc.)
-│   └── theme/             # Definición del tema de la aplicación
-│
-└── util/                  # Utilidades y extensiones
-```
-
 ## Principios de la Arquitectura Clean
 
 La arquitectura Clean separa la aplicación en capas con responsabilidades claras:
