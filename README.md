@@ -1,7 +1,7 @@
-# Travel Planner
+# FlyAway
 
 ## Descripción
-Travel Planner es una aplicación móvil diseñada para ayudar a los usuarios a planificar y organizar sus viajes de manera eficiente. La aplicación permite crear itinerarios, gestionar destinos y mantener un registro detallado de las actividades planificadas.
+FlyAway es una aplicación móvil diseñada para ayudar a los usuarios a planificar y organizar sus viajes de manera eficiente. La aplicación permite crear itinerarios, gestionar destinos y mantener un registro detallado de las actividades planificadas.
 
 ## Características Principales
 - Creación y gestión de viajes
@@ -25,11 +25,10 @@ Travel Planner es una aplicación móvil diseñada para ayudar a los usuarios a 
 - 2GB RAM recomendado
 
 ## Equipo de Desarrollo
-- [Tu nombre]
-- [Otros miembros del equipo]
+- Jakub Wysocki
 
 ## Licencia
 Este proyecto está licenciado bajo la Licencia MIT - ver el archivo [LICENSE](LICENSE) para más detalles.
 
 ## Versión
-1.0.0-alpha 
+0.3.0
