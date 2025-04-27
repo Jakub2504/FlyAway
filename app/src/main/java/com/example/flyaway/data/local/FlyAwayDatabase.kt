@@ -5,19 +5,30 @@ import androidx.room.Database
 import androidx.room.RoomDatabase
 import androidx.room.TypeConverter
 import androidx.room.TypeConverters
+import com.example.flyaway.data.local.dao.AccessLogDao
 import com.example.flyaway.data.local.dao.ActivityDao
 import com.example.flyaway.data.local.dao.DayDao
 import com.example.flyaway.data.local.dao.TripDao
+import com.example.flyaway.data.local.dao.UserDao
+import com.example.flyaway.data.local.entity.AccessLogEntity
 import com.example.flyaway.data.local.entity.ActivityEntity
 import com.example.flyaway.data.local.entity.DayEntity
 import com.example.flyaway.data.local.entity.TripEntity
+import com.example.flyaway.data.local.entity.UserEntity
 import java.time.LocalDate
+import java.time.LocalDateTime
 import java.time.LocalTime
 import java.time.format.DateTimeFormatter
 
 @Database(
-    entities = [TripEntity::class, DayEntity::class, ActivityEntity::class],
-    version = 1,
+    entities = [
+        TripEntity::class,
+        DayEntity::class,
+        ActivityEntity::class,
+        UserEntity::class,
+        AccessLogEntity::class
+    ],
+    version = 4,
     exportSchema = false
 )
 @TypeConverters(Converters::class)
@@ -25,11 +36,14 @@ abstract class FlyAwayDatabase : RoomDatabase() {
     abstract fun tripDao(): TripDao
     abstract fun dayDao(): DayDao
     abstract fun activityDao(): ActivityDao
+    abstract fun userDao(): UserDao
+    abstract fun accessLogDao(): AccessLogDao
 }
 
 class Converters {
     private val dateFormatter = DateTimeFormatter.ofPattern("dd/MM/yyyy")
     private val timeFormatter = DateTimeFormatter.ofPattern("HH:mm")
+    private val dateTimeFormatter = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm")
 
     @TypeConverter
     fun fromTimestamp(value: Long?): LocalDate? {
@@ -71,6 +85,26 @@ class Converters {
         }
     }
 
+    @TypeConverter
+    fun fromDateTimeString(value: String?): LocalDateTime? {
+        return try {
+            value?.let { LocalDateTime.parse(it, dateTimeFormatter) }
+        } catch (e: Exception) {
+            Log.e("Converters", "Error al convertir string a LocalDateTime", e)
+            null
+        }
+    }
+
+    @TypeConverter
+    fun dateTimeToString(dateTime: LocalDateTime?): String? {
+        return try {
+            dateTime?.format(dateTimeFormatter)
+        } catch (e: Exception) {
+            Log.e("Converters", "Error al convertir LocalDateTime a string", e)
+            null
+        }
+    }
+
     // Métodos auxiliares para formatear fechas
     fun formatDate(date: LocalDate?): String {
         return date?.format(dateFormatter) ?: ""
@@ -78,5 +112,9 @@ class Converters {
 
     fun formatTime(time: LocalTime?): String {
         return time?.format(timeFormatter) ?: ""
+    }
+
+    fun formatDateTime(dateTime: LocalDateTime?): String {
+        return dateTime?.format(dateTimeFormatter) ?: ""
     }
 } 

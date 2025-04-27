@@ -57,11 +57,13 @@ import java.time.LocalDate
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import kotlinx.coroutines.launch
+import androidx.navigation.NavController
 
 @RequiresApi(Build.VERSION_CODES.O)
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CreateTripScreen(
+    navController: NavController,
     onNavigateBack: () -> Unit
 ) {
     val viewModel: CreateTripViewModel = hiltViewModel()
@@ -74,7 +76,7 @@ fun CreateTripScreen(
     // Efecto para manejar la navegación una vez creado el viaje
     LaunchedEffect(state.isSuccess) {
         if (state.isSuccess) {
-            // Navegar a la pantalla anterior después de crear el viaje
+            navController.previousBackStackEntry?.savedStateHandle?.set("trip_created", true)
             onNavigateBack()
             viewModel.onEvent(CreateTripEvent.OnResetState)
         }

@@ -119,6 +119,34 @@ fun ProfileScreen(
                 icon = Icons.Default.Phone,
                 isEditing = state.isEditing
             )
+            
+            Spacer(modifier = Modifier.height(16.dp))
+            
+            ProfileField(
+                label = "Fecha de nacimiento",
+                value = state.birthdate,
+                onValueChange = {},
+                icon = Icons.Default.Cake,
+                isEditing = false
+            )
+            
+            Spacer(modifier = Modifier.height(16.dp))
+            
+            ProfileField(
+                label = "País",
+                value = state.country,
+                onValueChange = {},
+                icon = Icons.Default.Flag,
+                isEditing = false
+            )
+            
+            Spacer(modifier = Modifier.height(16.dp))
+            
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Default.Email, contentDescription = null)
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("Acepta recibir emails: ${if (state.acceptEmails) "Sí" else "No"}")
+            }
         }
         
         if (showSaveConfirmation) {

@@ -57,6 +57,7 @@
     <string name="create_trip_prompt">Utwórz swoją pierwszą podróż, aby rozpocząć przygodę!</string>
     <string name="your_trips">Twoje podróże</string>
     <string name="days_count">%d dni</string>
+    <string name="app_description">Twoja aplikacja do planowania podróży</string>
 
     <!-- Trip Screen -->
     <string name="trip_details">Szczegóły podróży</string>
@@ -105,7 +106,7 @@
     <string name="about">O nas</string>
     <string name="about_title">O nas</string>
     <string name="about_description">FlyAway to Twoja aplikacja do łatwego i szybkiego planowania podróży.</string>
-    <string name="app_version">Wersja 0.3.0</string>
+    <string name="app_version">Wersja 0.4.0</string>
     <string name="version">Wersja</string>
     <string name="developers">Jakub Wysocki</string>
     <string name="about_us_content">FlyAway to aplikacja do planowania podróży, zaprojektowana, aby ułatwić organizację Twojej podróży. Naszą misją jest pomóc Ci stworzyć niezapomniane wrażenia z podróży przy minimalnym wysiłku.</string>
@@ -117,6 +118,7 @@
     <string name="terms_content">To są warunki korzystania z aplikacji FlyAway. Korzystając z FlyAway, zgadzasz się przestrzegać tych warunków. Aplikacja jest dostarczana w stanie "takim jaki jest" bez żadnych gwarancji.</string>
     <string name="privacy_policy">Polityka prywatności</string>
     <string name="terms_last_updated">Ostatnia aktualizacja: Maj 2023</string>
+    <string name="privacy_policy_full">Pełna polityka prywatności jest dostępna na naszej stronie internetowej.</string>
 
     <!-- Creación de Viaje -->
     <string name="trip_duration">Czas trwania: %d dni</string>

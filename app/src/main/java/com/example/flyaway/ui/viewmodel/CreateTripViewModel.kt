@@ -4,8 +4,10 @@ import android.os.Build
 import androidx.annotation.RequiresApi
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.flyaway.data.repository.AuthRepository
 import com.example.flyaway.domain.model.Trip
 import com.example.flyaway.domain.repository.TripRepository
+import com.example.flyaway.domain.usecase.SaveTripUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -15,6 +17,7 @@ import kotlinx.coroutines.launch
 import java.time.LocalDate
 import java.util.UUID
 import javax.inject.Inject
+import android.util.Log
 
 /**
  * Estado para la pantalla de creación de viaje
@@ -31,7 +34,8 @@ data class CreateTripState(
     val isSuccess: Boolean = false,
     val error: String? = null,
     val showStartDatePicker: Boolean = false,
-    val showEndDatePicker: Boolean = false
+    val showEndDatePicker: Boolean = false,
+    val tripCreated: Boolean = false
 )
 
 /**
@@ -53,6 +57,8 @@ sealed class CreateTripEvent {
 @RequiresApi(Build.VERSION_CODES.O)
 @HiltViewModel
 class CreateTripViewModel @Inject constructor(
+    private val saveTripUseCase: SaveTripUseCase,
+    private val authRepository: AuthRepository,
     private val tripRepository: TripRepository
 ) : ViewModel() {
 
@@ -137,49 +143,36 @@ class CreateTripViewModel @Inject constructor(
 
     private fun createTrip() {
         val currentState = _state.value
-        
-        // Validar todos los campos
-        val nameError = validateName(currentState.name)
-        val destinationError = validateDestination(currentState.destination)
-        val dateError = validateDates(currentState.startDate, currentState.endDate)
-        
-        // Actualizar estado con errores si existen
-        if (nameError != null || destinationError != null || dateError != null) {
-            _state.update { it.copy(
-                nameError = nameError,
-                destinationError = destinationError,
-                dateError = dateError
-            ) }
-            return
-        }
-        
-        // Continuar con la creación si no hay errores
         viewModelScope.launch {
             _state.update { it.copy(isLoading = true, error = null) }
-            
             try {
+                val userId = authRepository.getCurrentUser()?.uid ?: throw Exception("Usuario no autenticado")
+                // Generar los días del viaje según el rango de fechas
+                val start = currentState.startDate!!
+                val end = currentState.endDate!!
+                val daysBetween = java.time.temporal.ChronoUnit.DAYS.between(start, end).toInt() + 1
+                val days = (0 until daysBetween).map { dayOffset ->
+                    val date = start.plusDays(dayOffset.toLong())
+                    com.example.flyaway.domain.model.Day(
+                        id = UUID.randomUUID().toString(),
+                        tripId = "", // El tripId se asignará en el repositorio
+                        date = date,
+                        dayNumber = dayOffset + 1
+                    )
+                }
                 val trip = Trip(
                     id = UUID.randomUUID().toString(),
                     name = currentState.name.trim(),
                     destination = currentState.destination.trim(),
-                    startDate = currentState.startDate!!,
-                    endDate = currentState.endDate!!,
-                    days = emptyList()
+                    startDate = start,
+                    endDate = end,
+                    createdAt = java.time.LocalDate.now(),
+                    days = days
                 )
-                
-                // Guardar el viaje
-                val savedTrip = tripRepository.saveTrip(trip)
-                
-                // Crear días iniciales basados en la duración del viaje
-                tripRepository.createInitialDaysForTrip(savedTrip)
-                
-                // Actualizar estado para indicar éxito
-                _state.update { it.copy(isLoading = false, isSuccess = true) }
+                val savedTrip = saveTripUseCase(trip, userId)
+                _state.update { it.copy(isLoading = false, isSuccess = true, tripCreated = true) }
             } catch (e: Exception) {
-                _state.update { it.copy(
-                    isLoading = false,
-                    error = e.message ?: "Error al crear el viaje"
-                ) }
+                _state.update { it.copy(isLoading = false, error = e.message ?: "Error al crear el viaje") }
             }
         }
     }
@@ -209,5 +202,9 @@ class CreateTripViewModel @Inject constructor(
             startDate.isAfter(endDate) -> "La fecha de inicio no puede ser posterior a la fecha de fin"
             else -> null
         }
+    }
+
+    fun resetState() {
+        _state.update { it.copy(tripCreated = false) }
     }
 } 

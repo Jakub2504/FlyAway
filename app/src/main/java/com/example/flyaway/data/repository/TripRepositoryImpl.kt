@@ -1,5 +1,6 @@
 package com.example.flyaway.data.repository
 
+import android.util.Log
 import com.example.flyaway.data.local.dao.ActivityDao
 import com.example.flyaway.data.local.dao.DayDao
 import com.example.flyaway.data.local.dao.TripDao
@@ -28,8 +29,10 @@ class TripRepositoryImpl @Inject constructor(
     private val activityDao: ActivityDao
 ) : TripRepository {
 
-    override fun getAllTrips(): Flow<List<Trip>> {
-        return tripDao.getAllTrips().map { tripEntities ->
+    override fun getAllTrips(userId: String): Flow<List<Trip>> {
+        Log.d("TripRepositoryImpl", "Obteniendo todos los viajes para usuario: $userId")
+        return tripDao.getAllTripsByUserId(userId).map { tripEntities ->
+            Log.d("TripRepositoryImpl", "Entidades de viajes obtenidas: ${tripEntities.size}")
             tripEntities.map { tripEntity ->
                 // Esta función carga solo los datos básicos del viaje
                 // Los días y actividades se cargarán bajo demanda
@@ -38,8 +41,8 @@ class TripRepositoryImpl @Inject constructor(
         }
     }
 
-    override fun getTripById(tripId: String): Flow<Trip?> {
-        return tripDao.getTripById(tripId).map { tripEntity ->
+    override fun getTripById(tripId: String, userId: String): Flow<Trip?> {
+        return tripDao.getTripById(tripId, userId).map { tripEntity ->
             tripEntity?.let {
                 // Cuando solicitamos un viaje específico, cargamos los días
                 // y actividades asociadas
@@ -53,22 +56,29 @@ class TripRepositoryImpl @Inject constructor(
         }
     }
 
-    override suspend fun saveTrip(trip: Trip): Trip {
-        tripDao.insertTrip(trip.toEntity())
-        trip.days.forEach { day ->
-            dayDao.insertDay(day.toEntity(trip.id))
-            day.activities.forEach { activity ->
-                activityDao.insertActivity(activity.toEntity(day.id))
+    override suspend fun saveTrip(trip: Trip, userId: String): Trip {
+        Log.d("TripRepositoryImpl", "Guardando viaje: ${trip.id}, usuario: $userId, nombre: ${trip.name}, destino: ${trip.destination}")
+        try {
+            tripDao.insertTrip(trip.toEntity(userId))
+            trip.days.forEach { day ->
+                dayDao.insertDay(day.toEntity(trip.id))
+                day.activities.forEach { activity ->
+                    activityDao.insertActivity(activity.toEntity(day.id))
+                }
             }
+            Log.d("TripRepositoryImpl", "Viaje guardado correctamente: ${trip.id}")
+            return trip
+        } catch (e: Exception) {
+            Log.e("TripRepositoryImpl", "Error al guardar el viaje: ${e.message}")
+            throw e
         }
-        return trip
+    }
+    
+    override suspend fun deleteTrip(tripId: String, userId: String) {
+        tripDao.deleteTripById(tripId, userId)
     }
 
-    override suspend fun deleteTrip(tripId: String) {
-        tripDao.deleteTripById(tripId)
-    }
-
-    override suspend fun createInitialDaysForTrip(trip: Trip): Trip {
+    override suspend fun createInitialDaysForTrip(trip: Trip, userId: String): Trip {
         val daysBetween = ChronoUnit.DAYS.between(trip.startDate, trip.endDate).toInt() + 1
         val days = (0 until daysBetween).map { dayOffset ->
             val date = trip.startDate.plusDays(dayOffset.toLong())
@@ -78,16 +88,16 @@ class TripRepositoryImpl @Inject constructor(
                 dayNumber = dayOffset + 1  // Esto asegura que los días estén numerados correctamente desde el principio
             )
         }
-
+        
         // Crear un nuevo viaje con los días
         val updatedTrip = trip.copy(days = days)
-
+        
         // Guardar el viaje actualizado
-        return saveTrip(updatedTrip)
+        return saveTrip(updatedTrip, userId)
     }
-
-    override suspend fun saveDay(day: Day): Trip? {
-        val trip = getTripById(day.tripId).first() ?: return null
+    
+    override suspend fun saveDay(day: Day, userId: String): Trip? {
+        val trip = getTripById(day.tripId, userId).first() ?: return null
 
         // Primero, insertar o actualizar el día
         dayDao.insertDay(day.toEntity(trip.id))
@@ -103,27 +113,27 @@ class TripRepositoryImpl @Inject constructor(
                     val updatedDay = dayEntity.copy(dayNumber = index + 1)
                     dayDao.updateDay(updatedDay)
                     updatedDay
-                } else {
+        } else {
                     dayEntity
                 }
-            }
-
+        }
+        
         // Convertir a modelos de dominio y cargar las actividades
         val domainDays = sortedDays.map { dayEntity ->
             val activities = activityDao.getActivitiesByDayId(dayEntity.id).first()
                 .map { it.toDomainModel() }
             dayEntity.toDomainModel().copy(activities = activities)
         }
-
+        
         // Actualizar el viaje con los días actualizados
         val updatedTrip = trip.copy(days = domainDays)
-        tripDao.updateTrip(updatedTrip.toEntity())
-
+        tripDao.updateTrip(updatedTrip.toEntity(userId))
+        
         return updatedTrip
     }
-
-    override suspend fun deleteDay(tripId: String, dayId: String): Trip? {
-        val trip = getTripById(tripId).first() ?: return null
+    
+    override suspend fun deleteDay(tripId: String, dayId: String, userId: String): Trip? {
+        val trip = getTripById(tripId, userId).first() ?: return null
 
         // Eliminar el día
         dayDao.deleteDayById(dayId)
@@ -134,7 +144,7 @@ class TripRepositoryImpl @Inject constructor(
         // Si no quedan días, simplemente devolver el viaje actualizado
         if (remainingDays.isEmpty()) {
             val updatedTrip = trip.copy(days = emptyList())
-            tripDao.updateTrip(updatedTrip.toEntity())
+            tripDao.updateTrip(updatedTrip.toEntity(userId))
             return updatedTrip
         }
 
@@ -158,12 +168,12 @@ class TripRepositoryImpl @Inject constructor(
 
         // Actualizar el viaje con los días actualizados
         val updatedTrip = trip.copy(days = domainDays)
-        tripDao.updateTrip(updatedTrip.toEntity())
+        tripDao.updateTrip(updatedTrip.toEntity(userId))
 
         return updatedTrip
     }
 
-    override suspend fun saveActivity(activity: Activity): Day? {
+    override suspend fun saveActivity(activity: Activity, userId: String): Day? {
         val day = dayDao.getDayById(activity.dayId).first() ?: return null
 
         activityDao.insertActivity(activity.toEntity(day.id))
@@ -171,17 +181,17 @@ class TripRepositoryImpl @Inject constructor(
         // Obtener todas las actividades actualizadas para este día
         val updatedActivities = activityDao.getActivitiesByDayId(day.id).first()
             .map { it.toDomainModel() }
-
+        
         // Actualizar el día con las nuevas actividades
         val updatedDay = day.toDomainModel().copy(activities = updatedActivities)
-
+        
         // Guardar el día actualizado
         dayDao.updateDay(updatedDay.toEntity(updatedDay.tripId))
-
+        
         return updatedDay
     }
-
-    override suspend fun deleteActivity(dayId: String, activityId: String): Day? {
+    
+    override suspend fun deleteActivity(dayId: String, activityId: String, userId: String): Day? {
         val day = dayDao.getDayById(dayId).first() ?: return null
 
         activityDao.deleteActivityById(activityId)
@@ -189,13 +199,13 @@ class TripRepositoryImpl @Inject constructor(
         // Obtener todas las actividades restantes para este día
         val remainingActivities = activityDao.getActivitiesByDayId(dayId).first()
             .map { it.toDomainModel() }
-
+        
         // Actualizar el día con las actividades actualizadas
         val updatedDay = day.toDomainModel().copy(activities = remainingActivities)
-
+        
         // Guardar el día actualizado
         dayDao.updateDay(updatedDay.toEntity(updatedDay.tripId))
-
+        
         return updatedDay
     }
 
@@ -213,9 +223,10 @@ class TripRepositoryImpl @Inject constructor(
         )
     }
 
-    private fun Trip.toEntity(): TripEntity {
+    private fun Trip.toEntity(userId: String): TripEntity {
         return TripEntity(
             id = id,
+            userId = userId,
             name = name,
             destination = destination,
             startDate = startDate,

@@ -50,6 +50,8 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -63,6 +65,10 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.LifecycleOwner
+import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.navigation.NavController
 import com.example.flyaway.R
 import com.example.flyaway.ui.transitions.components.ErrorScreen
@@ -75,6 +81,7 @@ import com.example.flyaway.ui.navigation.AppScreens
 import kotlinx.coroutines.launch
 import java.time.format.DateTimeFormatter
 import java.time.temporal.ChronoUnit
+import androidx.compose.runtime.livedata.observeAsState
 
 /**
  * Pantalla principal de la aplicación.
@@ -82,76 +89,8 @@ import java.time.temporal.ChronoUnit
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun HomeScreen(navController: NavController) {
-    Scaffold(
-        topBar = {
-            CenterAlignedTopAppBar(
-                title = { Text(text = "FlyAway") },
-                navigationIcon = {
-                    IconButton(onClick = {
-                        // Abrir drawer o navegar a perfil
-                    }) {
-                        Icon(
-                            imageVector = Icons.Default.Menu,
-                            contentDescription = "Menu"
-                        )
-                    }
-                }
-            )
-        },
-        floatingActionButton = {
-            ExtendedFloatingActionButton(
-                onClick = {
-                    navController.navigate(AppScreens.CreateTripScreen.route)
-                },
-                icon = {
-                    Icon(
-                        imageVector = Icons.Default.Add,
-                        contentDescription = "Create Trip"
-                    )
-                },
-                text = { Text("Nuevo Viaje") },
-                elevation = FloatingActionButtonDefaults.elevation()
-            )
-        }
-    ) { paddingValues ->
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues),
-            contentAlignment = Alignment.Center
-        ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                Text(
-                    text = "Bienvenido a FlyAway",
-                    style = MaterialTheme.typography.headlineMedium,
-                    textAlign = TextAlign.Center
-                )
-                Spacer(modifier = Modifier.height(16.dp))
-                Text(
-                    text = "Tu aplicación para planificar viajes",
-                    style = MaterialTheme.typography.bodyLarge,
-                    textAlign = TextAlign.Center
-                )
-                Spacer(modifier = Modifier.height(32.dp))
-                Text(
-                    text = "No tienes viajes creados.\nHaz clic en el botón '+ Nuevo Viaje' para crear tu primer viaje.",
-                    style = MaterialTheme.typography.bodyMedium,
-                    textAlign = TextAlign.Center
-                )
-            }
-        }
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
 fun HomeScreen(
+    navController: NavController,
     onNavigateToCreateTrip: () -> Unit,
     onNavigateToTripDetails: (String) -> Unit,
     onNavigateToSettings: () -> Unit,
@@ -163,6 +102,33 @@ fun HomeScreen(
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
     val scope = rememberCoroutineScope()
     var showSettingsMenu by remember { mutableStateOf(false) }
+
+    // Observar cuando se crea un nuevo viaje
+    LaunchedEffect(Unit) {
+        viewModel.onEvent(HomeEvent.LoadTrips)
+    }
+
+    val tripCreated = navController.currentBackStackEntry
+        ?.savedStateHandle
+        ?.getLiveData<Boolean>("trip_created")
+        ?.observeAsState()
+    if (tripCreated?.value == true) {
+        viewModel.onEvent(HomeEvent.LoadTrips)
+        navController.currentBackStackEntry?.savedStateHandle?.set("trip_created", false)
+    }
+
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                viewModel.onEvent(HomeEvent.LoadTrips)
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+        }
+    }
 
     HomeContent(
         state = state,

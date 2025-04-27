@@ -12,17 +12,17 @@ import kotlinx.coroutines.flow.Flow
 interface TripRepository {
     
     // Operaciones para Trip
-    fun getAllTrips(): Flow<List<Trip>>
-    fun getTripById(tripId: String): Flow<Trip?>
-    suspend fun saveTrip(trip: Trip): Trip
-    suspend fun deleteTrip(tripId: String)
-    suspend fun createInitialDaysForTrip(trip: Trip): Trip
+    fun getAllTrips(userId: String): Flow<List<Trip>>
+    fun getTripById(tripId: String, userId: String): Flow<Trip?>
+    suspend fun saveTrip(trip: Trip, userId: String): Trip
+    suspend fun deleteTrip(tripId: String, userId: String)
+    suspend fun createInitialDaysForTrip(trip: Trip, userId: String): Trip
     
     // Operaciones para Day
-    suspend fun saveDay(day: Day): Trip?
-    suspend fun deleteDay(tripId: String, dayId: String): Trip?
+    suspend fun saveDay(day: Day, userId: String): Trip?
+    suspend fun deleteDay(tripId: String, dayId: String, userId: String): Trip?
     
     // Operaciones para Activity
-    suspend fun saveActivity(activity: Activity): Day?
-    suspend fun deleteActivity(dayId: String, activityId: String): Day?
+    suspend fun saveActivity(activity: Activity, userId: String): Day?
+    suspend fun deleteActivity(dayId: String, activityId: String, userId: String): Day?
 } 

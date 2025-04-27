@@ -3,6 +3,9 @@ package com.example.flyaway.ui.navigation
 import androidx.compose.animation.ExperimentalAnimationApi
 import androidx.compose.runtime.Composable
 import androidx.navigation.NavHostController
+import com.example.flyaway.feature.auth.presentation.ForgotPasswordScreen
+import com.example.flyaway.feature.auth.presentation.LoginScreen
+import com.example.flyaway.feature.auth.presentation.RegisterScreen
 import com.example.flyaway.ui.view.*
 import com.google.accompanist.navigation.animation.AnimatedNavHost
 import com.google.accompanist.navigation.animation.composable
@@ -44,6 +47,43 @@ fun AppNavigation(navController: NavHostController) {
                     navController.navigate(AppScreens.HomeScreen.route) {
                         popUpTo(AppScreens.LoginScreen.route) { inclusive = true }
                     }
+                },
+                onNavigateToRegister = {
+                    navController.navigate(AppScreens.RegisterScreen.route)
+                },
+                onNavigateToForgotPassword = {
+                    navController.navigate(AppScreens.ForgotPasswordScreen.route)
+                }
+            )
+        }
+        
+        // Pantalla de Registro
+        composable(
+            route = AppScreens.RegisterScreen.route,
+            enterTransition = { enterTransition() },
+            exitTransition = { exitTransition() }
+        ) {
+            RegisterScreen(
+                onNavigateToLogin = {
+                    navController.popBackStack()
+                },
+                onNavigateToHome = {
+                    navController.navigate(AppScreens.HomeScreen.route) {
+                        popUpTo(AppScreens.LoginScreen.route) { inclusive = true }
+                    }
+                }
+            )
+        }
+        
+        // Pantalla de Recuperación de Contraseña
+        composable(
+            route = AppScreens.ForgotPasswordScreen.route,
+            enterTransition = { enterTransition() },
+            exitTransition = { exitTransition() }
+        ) {
+            ForgotPasswordScreen(
+                onNavigateBack = {
+                    navController.popBackStack()
                 }
             )
         }
@@ -57,6 +97,7 @@ fun AppNavigation(navController: NavHostController) {
             popExitTransition = { popExitTransition() }
         ) {
             HomeScreen(
+                navController = navController,
                 onNavigateToCreateTrip = {
                     navController.navigate(AppScreens.CreateTripScreen.route)
                 },
@@ -84,6 +125,7 @@ fun AppNavigation(navController: NavHostController) {
             popExitTransition = { popExitTransition() }
         ) {
             CreateTripScreen(
+                navController = navController,
                 onNavigateBack = { navController.popBackStack() }
             )
         }

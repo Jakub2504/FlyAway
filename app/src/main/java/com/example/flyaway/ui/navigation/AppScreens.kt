@@ -7,6 +7,8 @@ package com.example.flyaway.ui.navigation
 sealed class AppScreens(val route: String) {
     object SplashScreen : AppScreens("splash_screen")
     object LoginScreen : AppScreens("login_screen")
+    object RegisterScreen : AppScreens("register_screen")
+    object ForgotPasswordScreen : AppScreens("forgot_password_screen")
     object HomeScreen : AppScreens("home_screen")
     object TermsScreen : AppScreens("terms_screen")
     object SettingsScreen : AppScreens("settings_screen")

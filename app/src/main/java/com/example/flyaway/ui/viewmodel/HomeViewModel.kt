@@ -4,15 +4,12 @@ import android.os.Build
 import androidx.annotation.RequiresApi
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.flyaway.data.repository.AuthRepository
 import com.example.flyaway.domain.model.Trip
 import com.example.flyaway.domain.repository.TripRepository
 import com.example.flyaway.domain.usecase.GetTripsUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.SharingStarted
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 import android.util.Log
@@ -38,35 +35,12 @@ sealed class HomeEvent {
 @RequiresApi(Build.VERSION_CODES.O)
 @HiltViewModel
 class HomeViewModel @Inject constructor(
-    private val tripRepository: TripRepository,
-    private val getTripsUseCase: GetTripsUseCase
+    private val getTripsUseCase: GetTripsUseCase,
+    private val authRepository: AuthRepository
 ) : ViewModel() {
 
-    // Estado de carga
-    private val _isLoading = MutableStateFlow(false)
-    
-    // Estado de error
-    private val _error = MutableStateFlow<String?>(null)
-    
-    // Estado combinado de la pantalla
-    val state: StateFlow<HomeState> = combine(
-        tripRepository.getAllTrips(),
-        _isLoading,
-        _error
-    ) { trips, isLoading, error ->
-        HomeState(
-            trips = trips,
-            isLoading = isLoading,
-            error = error
-        )
-    }.stateIn(
-        scope = viewModelScope,
-        started = SharingStarted.WhileSubscribed(5000),
-        initialValue = HomeState(isLoading = true)
-    )
-    
-    private val _uiState = MutableStateFlow<HomeUiState>(HomeUiState.Loading)
-    val uiState: StateFlow<HomeUiState> = _uiState.asStateFlow()
+    private val _state = MutableStateFlow(HomeState())
+    val state: StateFlow<HomeState> = _state.asStateFlow()
     
     init {
         loadTrips()
@@ -84,15 +58,28 @@ class HomeViewModel @Inject constructor(
     
     private fun loadTrips() {
         viewModelScope.launch {
+            _state.update { it.copy(isLoading = true, error = null) }
             try {
-                getTripsUseCase().collect { trips ->
-                    _uiState.value = HomeUiState.Success(trips)
-                }
+                val userId = authRepository.getCurrentUser()?.uid ?: throw Exception("Usuario no autenticado")
+                Log.d("HomeViewModel", "Cargando viajes para usuario: $userId")
+                getTripsUseCase(userId)
+                    .catch { e ->
+                        Log.e("HomeViewModel", "Error al cargar viajes: ${e.message}")
+                        _state.update { it.copy(error = e.message, isLoading = false) }
+                    }
+                    .collect { trips ->
+                        Log.d("HomeViewModel", "Viajes cargados: ${trips.size}")
+                        _state.update { it.copy(trips = trips, isLoading = false) }
+                    }
             } catch (e: Exception) {
-                Log.e("HomeViewModel", "Error loading trips", e)
-                _uiState.value = HomeUiState.Error(e.message ?: "Error desconocido")
+                Log.e("HomeViewModel", "Error al obtener usuario: ${e.message}")
+                _state.update { it.copy(error = e.message, isLoading = false) }
             }
         }
+    }
+
+    fun refresh() {
+        loadTrips()
     }
 }
 

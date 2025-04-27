@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "875591941762",
+    "project_id": "flyaway-b6770",
+    "storage_bucket": "flyaway-b6770.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:875591941762:android:dc60dd1c12aa14b3fe3e9b",
+        "android_client_info": {
+          "package_name": "com.example.flyaway"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDoeo10pKNxEkxvRrplDskAklxOd1pn3UQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

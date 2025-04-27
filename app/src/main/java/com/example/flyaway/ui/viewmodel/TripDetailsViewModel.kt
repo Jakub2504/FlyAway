@@ -1,33 +1,38 @@
 package com.example.flyaway.ui.viewmodel
 
 import android.os.Build
+import android.util.Log
 import androidx.annotation.RequiresApi
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.flyaway.data.repository.AuthRepository
 import com.example.flyaway.domain.model.Activity
 import com.example.flyaway.domain.model.Day
 import com.example.flyaway.domain.model.Trip
 import com.example.flyaway.domain.repository.TripRepository
-import com.example.flyaway.ui.navigation.AppDestinations
+import com.example.flyaway.domain.usecase.DeleteTripUseCase
+import com.example.flyaway.domain.usecase.GetTripByIdUseCase
+import com.example.flyaway.domain.usecase.SaveTripUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import java.time.LocalDate
 import java.time.LocalTime
 import java.time.format.DateTimeFormatter
-import javax.inject.Inject
 import java.time.temporal.ChronoUnit
 import java.util.stream.Collectors
+import javax.inject.Inject
 
 @RequiresApi(Build.VERSION_CODES.O)
 @HiltViewModel
 class TripDetailsViewModel @Inject constructor(
     private val tripRepository: TripRepository,
-    savedStateHandle: SavedStateHandle
+    savedStateHandle: SavedStateHandle,
+    private val getTripByIdUseCase: GetTripByIdUseCase,
+    private val saveTripUseCase: SaveTripUseCase,
+    private val deleteTripUseCase: DeleteTripUseCase,
+    private val authRepository: AuthRepository
 ) : ViewModel() {
     private val _state = MutableStateFlow(TripDetailsState())
     val state: StateFlow<TripDetailsState> = _state.asStateFlow()
@@ -35,13 +40,12 @@ class TripDetailsViewModel @Inject constructor(
     private val dateFormatter = DateTimeFormatter.ofPattern("dd/MM/yyyy")
     private val timeFormatter = DateTimeFormatter.ofPattern("HH:mm")
     
-    private val tripId: String = savedStateHandle[AppDestinations.TripDetails.TRIP_ID_PARAM] 
-        ?: throw IllegalArgumentException("Trip ID es necesario")
+    private val tripId: String = savedStateHandle["tripId"] ?: throw IllegalArgumentException("Trip ID is required")
     
     init {
-        loadTripDetails()
+        loadTrip()
     }
-    
+
     fun onEvent(event: TripDetailsEvent) {
         viewModelScope.launch {
             when (event) {
@@ -200,30 +204,23 @@ class TripDetailsViewModel @Inject constructor(
         }
     }
     
-    private fun loadTripDetails() {
+    private fun loadTrip() {
         viewModelScope.launch {
             _state.update { it.copy(isLoading = true, error = null) }
             try {
-                tripRepository.getTripById(tripId).collect { trip ->
-                    trip?.let {
-                        _state.update { state ->
-                            state.copy(
-                                trip = trip,
-                                isLoading = false
-                            )
-                        }
-                    } ?: run {
-                        _state.update { it.copy(
-                            error = "No se encontró el viaje",
-                            isLoading = false
-                        ) }
+                val userId = authRepository.getCurrentUser()?.uid ?: throw Exception("Usuario no autenticado")
+                getTripByIdUseCase(tripId, userId)
+                    .catch { e: Throwable ->
+                        Log.e("TripDetailsViewModel", "Error al cargar viaje: ${e.message}")
+                        _state.update { it.copy(error = e.message, isLoading = false) }
                     }
-                }
+                    .collect { trip: Trip? ->
+                        Log.d("TripDetailsViewModel", "Viaje cargado: ${trip?.id}")
+                        _state.update { it.copy(trip = trip, isLoading = false) }
+                    }
             } catch (e: Exception) {
-                _state.update { it.copy(
-                    error = e.message ?: "Error desconocido",
-                    isLoading = false
-                ) }
+                Log.e("TripDetailsViewModel", "Error al obtener usuario: ${e.message}")
+                _state.update { it.copy(error = e.message, isLoading = false) }
             }
         }
     }
@@ -232,26 +229,19 @@ class TripDetailsViewModel @Inject constructor(
         viewModelScope.launch {
             _state.update { it.copy(isLoading = true, error = null) }
             try {
-                tripRepository.getTripById(id).collect { trip ->
-                    trip?.let {
-                        _state.update { state ->
-                            state.copy(
-                                trip = trip,
-                                isLoading = false
-                            )
-                        }
-                    } ?: run {
-                        _state.update { it.copy(
-                            error = "No se encontró el viaje",
-                            isLoading = false
-                        ) }
+                val userId = authRepository.getCurrentUser()?.uid ?: throw Exception("Usuario no autenticado")
+                getTripByIdUseCase(id, userId)
+                    .catch { e: Throwable ->
+                        Log.e("TripDetailsViewModel", "Error al cargar viaje: ${e.message}")
+                        _state.update { it.copy(error = e.message, isLoading = false) }
                     }
-                }
+                    .collect { trip: Trip? ->
+                        Log.d("TripDetailsViewModel", "Viaje cargado: ${trip?.id}")
+                        _state.update { it.copy(trip = trip, isLoading = false) }
+                    }
             } catch (e: Exception) {
-                _state.update { it.copy(
-                    error = e.message ?: "Error desconocido",
-                    isLoading = false
-                ) }
+                Log.e("TripDetailsViewModel", "Error al obtener usuario: ${e.message}")
+                _state.update { it.copy(error = e.message, isLoading = false) }
             }
         }
     }
@@ -260,6 +250,7 @@ class TripDetailsViewModel @Inject constructor(
         viewModelScope.launch {
             val trip = _state.value.trip ?: return@launch
             val newDayDate = _state.value.newDayDate
+            val userId = authRepository.getCurrentUser()?.uid ?: throw Exception("Usuario no autenticado")
             
             // Validar que la fecha esté dentro del rango del viaje
             if (newDayDate.isBefore(trip.startDate) || newDayDate.isAfter(trip.endDate)) {
@@ -288,7 +279,7 @@ class TripDetailsViewModel @Inject constructor(
                 )
                 
                 // Guardar el día
-                tripRepository.saveDay(newDay)
+                tripRepository.saveDay(newDay, userId)
                 
                 // Actualizar el estado
                 _state.update { it.copy(
@@ -296,7 +287,7 @@ class TripDetailsViewModel @Inject constructor(
                 ) }
                 
                 // Recargar los detalles del viaje
-                loadTripDetails()
+                loadTrip()
             } catch (e: Exception) {
                 _state.update { it.copy(
                     error = e.message ?: "Error al añadir el día",
@@ -314,6 +305,7 @@ class TripDetailsViewModel @Inject constructor(
             val activityLocation = _state.value.newActivityLocation
             val startTime = _state.value.newActivityStartTime
             val endTime = _state.value.newActivityEndTime
+            val userId = authRepository.getCurrentUser()?.uid ?: throw Exception("Usuario no autenticado")
             
             // Validaciones
             if (activityName.isBlank()) {
@@ -363,7 +355,7 @@ class TripDetailsViewModel @Inject constructor(
                 )
                 
                 // Guardar la actividad
-                tripRepository.saveActivity(newActivity)
+                tripRepository.saveActivity(newActivity, userId)
                 
                 // Actualizar el estado
                 _state.update { it.copy(
@@ -373,7 +365,7 @@ class TripDetailsViewModel @Inject constructor(
                 ) }
                 
                 // Recargar los detalles del viaje
-                loadTripDetails()
+                loadTrip()
             } catch (e: Exception) {
                 _state.update { it.copy(
                     error = e.message ?: "Error al añadir la actividad"
@@ -384,17 +376,15 @@ class TripDetailsViewModel @Inject constructor(
     
     private fun deleteTrip() {
         viewModelScope.launch {
-            state.value.trip?.id?.let { tripId ->
-                try {
-                    tripRepository.deleteTrip(tripId)
-                    // Actualizar el estado para indicar que el viaje se ha eliminado
-                    _state.update { it.copy(
-                        showDeleteTripDialog = false,
-                        tripDeleted = true
-                    ) }
-                } catch (e: Exception) {
-                    _state.update { it.copy(error = e.message ?: "Error al eliminar el viaje") }
-                }
+            _state.update { it.copy(isLoading = true) }
+            try {
+                val userId = authRepository.getCurrentUser()?.uid ?: throw Exception("Usuario no autenticado")
+                deleteTripUseCase(tripId, userId)
+                _state.update { it.copy(trip = null) }
+            } catch (e: Exception) {
+                _state.update { it.copy(error = e.message) }
+            } finally {
+                _state.update { it.copy(isLoading = false) }
             }
         }
     }
@@ -403,9 +393,10 @@ class TripDetailsViewModel @Inject constructor(
         viewModelScope.launch {
             val dayToDelete = state.value.dayToEdit
             val tripId = state.value.trip?.id
+            val userId = authRepository.getCurrentUser()?.uid ?: throw Exception("Usuario no autenticado")
             
             if (dayToDelete != null && tripId != null) {
-                tripRepository.deleteDay(tripId, dayToDelete.id)
+                tripRepository.deleteDay(tripId, dayToDelete.id, userId)
                 _state.update { it.copy(
                     showDeleteDayDialog = false,
                     dayToEdit = null
@@ -420,9 +411,10 @@ class TripDetailsViewModel @Inject constructor(
     private fun deleteActivity() {
         viewModelScope.launch {
             val activityToDelete = state.value.activityToEdit
+            val userId = authRepository.getCurrentUser()?.uid ?: throw Exception("Usuario no autenticado")
             
             if (activityToDelete != null) {
-                tripRepository.deleteActivity(activityToDelete.dayId, activityToDelete.id)
+                tripRepository.deleteActivity(activityToDelete.dayId, activityToDelete.id, userId)
                 _state.update { it.copy(
                     showDeleteActivityDialog = false,
                     activityToEdit = null
@@ -437,13 +429,14 @@ class TripDetailsViewModel @Inject constructor(
     private fun editDay() {
         viewModelScope.launch {
             val dayToEdit = state.value.dayToEdit
+            val userId = authRepository.getCurrentUser()?.uid ?: throw Exception("Usuario no autenticado")
             
             if (dayToEdit != null && state.value.trip != null) {
                 val updatedDay = dayToEdit.copy(
                     date = state.value.newDayDate
                 )
                 
-                tripRepository.saveDay(updatedDay)
+                tripRepository.saveDay(updatedDay, userId)
                 _state.update { it.copy(
                     showEditDayDialog = false,
                     dayToEdit = null
@@ -459,6 +452,7 @@ class TripDetailsViewModel @Inject constructor(
         viewModelScope.launch {
             val activityToEdit = state.value.activityToEdit
             val selectedDay = state.value.selectedDay
+            val userId = authRepository.getCurrentUser()?.uid ?: throw Exception("Usuario no autenticado")
             
             if (activityToEdit != null && selectedDay != null) {
                 val newName = state.value.newActivityName
@@ -510,7 +504,7 @@ class TripDetailsViewModel @Inject constructor(
                     endTime = newEndTime
                 )
                 
-                tripRepository.saveActivity(updatedActivity)
+                tripRepository.saveActivity(updatedActivity, userId)
                 _state.update { it.copy(
                     showEditActivityDialog = false,
                     activityToEdit = null,
@@ -523,9 +517,11 @@ class TripDetailsViewModel @Inject constructor(
         }
     }
     
+    @RequiresApi(Build.VERSION_CODES.UPSIDE_DOWN_CAKE)
     private fun editTrip() {
         viewModelScope.launch {
             try {
+                val userId = authRepository.getCurrentUser()?.uid ?: throw Exception("Usuario no autenticado")
                 state.value.trip?.let { existingTrip ->
                     // Guardar la fecha de inicio y fin anteriores para comparar
                     val oldStartDate = existingTrip.startDate
@@ -573,14 +569,14 @@ class TripDetailsViewModel @Inject constructor(
                             days = finalDays
                         )
                         
-                        tripRepository.saveTrip(adjustedTrip)
+                        saveTripUseCase(adjustedTrip, userId)
                         _state.update { it.copy(
                             trip = adjustedTrip,
                             showEditTripDialog = false
                         ) }
                     } else {
                         // Si no cambió la duración, guardar normalmente
-                        tripRepository.saveTrip(updatedTrip)
+                        saveTripUseCase(updatedTrip, userId)
                         _state.update { it.copy(
                             trip = updatedTrip,
                             showEditTripDialog = false

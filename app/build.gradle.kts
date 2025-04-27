@@ -4,6 +4,7 @@ plugins {
     id("kotlin-kapt")
     id("dagger.hilt.android.plugin")
     id("androidx.navigation.safeargs.kotlin")
+    id("com.google.gms.google-services")
 }
 
 android {
@@ -63,6 +64,7 @@ dependencies {
     // Core Android
     implementation("androidx.core:core-ktx:1.12.0")
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.7.0")
+    implementation("androidx.lifecycle:lifecycle-runtime-compose:2.7.0")
     implementation("androidx.activity:activity-compose:1.8.2")
 
     // Compose
@@ -95,6 +97,14 @@ dependencies {
 
     // Accompanist
     implementation("com.google.accompanist:accompanist-navigation-animation:0.32.0")
+
+    // Firebase
+    implementation(platform("com.google.firebase:firebase-bom:32.7.2"))
+    implementation("com.google.firebase:firebase-auth-ktx")
+    implementation("com.google.firebase:firebase-analytics-ktx")
+
+    // Runtime-livedata
+    implementation("androidx.compose.runtime:runtime-livedata")
 
     // Testing
     testImplementation("junit:junit:4.13.2")

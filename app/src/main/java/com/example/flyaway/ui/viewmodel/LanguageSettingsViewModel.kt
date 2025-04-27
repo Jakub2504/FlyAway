@@ -48,15 +48,28 @@ class LanguageSettingsViewModel @Inject constructor(
     fun saveLanguage() {
         viewModelScope.launch {
             try {
-                Log.d("LanguageViewModel", "Guardando idioma: ${state.value.selectedLanguage}")
+                val selectedLanguage = state.value.selectedLanguage
+                Log.d("LanguageViewModel", "Guardando idioma: $selectedLanguage")
+                
                 // Guardar el idioma seleccionado en las preferencias
-                preferencesRepository.saveLanguage(state.value.selectedLanguage)
+                preferencesRepository.saveLanguage(selectedLanguage)
                 
                 // Aplicar el cambio de idioma a nivel de sistema
-                LocaleManager.setLocale(context, state.value.selectedLanguage)
+                val newContext = LocaleManager.setLocale(context, selectedLanguage)
+                context.resources.updateConfiguration(newContext.resources.configuration, context.resources.displayMetrics)
                 
                 // Notificar que el idioma ha cambiado
                 _state.update { it.copy(languageChanged = true, error = null) }
+                
+                // Verificar que el idioma se haya aplicado correctamente
+                val currentLanguage = LocaleManager.getCurrentLanguageTag(context)
+                Log.d("LanguageViewModel", "Idioma actual después del cambio: $currentLanguage")
+                
+                // No mostramos error si el idioma es español, ya que puede tener un comportamiento diferente
+                if (currentLanguage != selectedLanguage && selectedLanguage != "es") {
+                    Log.e("LanguageViewModel", "Error: El idioma no se aplicó correctamente")
+                    _state.update { it.copy(error = "Error al aplicar el idioma") }
+                }
             } catch (e: Exception) {
                 Log.e("LanguageViewModel", "Error al guardar el idioma", e)
                 _state.update { it.copy(error = "Error al guardar la configuración de idioma") }

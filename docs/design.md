@@ -1,247 +1,141 @@
-# Diseño de FlyAway - Base de Datos
+# Diseño de la Aplicación FlyAway
 
-## Arquitectura General
+## Arquitectura
 
-La aplicación sigue el patrón de arquitectura MVVM (Model-View-ViewModel) junto con Clean Architecture para mantener un código limpio y mantenible. La base de datos es un componente fundamental que implementa la capa de persistencia de datos.
+La aplicación sigue una arquitectura MVVM (Model-View-ViewModel) con las siguientes capas:
 
-### Capas de la Aplicación
+- **View**: Pantallas de la aplicación implementadas con Jetpack Compose
+- **ViewModel**: Lógica de presentación y manejo de estado
+- **Repository**: Capa de abstracción para el acceso a datos
+- **Data**: Implementación de la persistencia y servicios externos
 
-1. **Presentación (UI)**
-   - Activities/Fragments
-   - Composables
-   - ViewModels
-   - Estados UI
+## Esquema de Base de Datos
 
-2. **Dominio**
-   - Casos de Uso
-   - Modelos de Dominio
-   - Interfaces de Repositorio
-
-3. **Datos**
-   - Implementaciones de Repositorio
-   - Base de Datos Room
-   - Modelos de Datos
-
-## Diseño de la Base de Datos
-
-### 1. Estructura General
-
-La base de datos está implementada utilizando Room, que es una biblioteca de persistencia proporcionada por Android Jetpack. Room actúa como una capa de abstracción sobre SQLite, ofreciendo:
-
-- Verificación de tipos en tiempo de compilación
-- Soporte para corrutinas y Flow
-- Integración con LiveData
-- Anotaciones para simplificar el código
-
-### 2. Configuración de la Base de Datos
-
-La base de datos está definida en la clase `FlyAwayDatabase`:
-
-```kotlin
-@Database(
-    entities = [TripEntity::class, DayEntity::class, ActivityEntity::class],
-    version = 1,
-    exportSchema = false
-)
-@TypeConverters(Converters::class)
-abstract class FlyAwayDatabase : RoomDatabase() {
-    abstract fun tripDao(): TripDao
-    abstract fun dayDao(): DayDao
-    abstract fun activityDao(): ActivityDao
-}
+### Tabla: users
+```sql
+CREATE TABLE users (
+    id TEXT PRIMARY KEY,
+    email TEXT NOT NULL,
+    username TEXT NOT NULL UNIQUE,
+    birthdate TEXT NOT NULL,
+    address TEXT,
+    country TEXT,
+    phone_number TEXT,
+    accept_emails BOOLEAN NOT NULL,
+    created_at TEXT NOT NULL
+);
 ```
 
-### 3. Modelo de Datos
-
-La base de datos está estructurada en tres tablas principales:
-
-#### Tabla: trips
-```kotlin
-@Entity(tableName = "trips")
-data class TripEntity(
-    @PrimaryKey
-    val id: String,
-    val name: String,
-    val destination: String,
-    val startDate: LocalDate,
-    val endDate: LocalDate,
-    val createdAt: LocalDate
-)
+### Tabla: trips
+```sql
+CREATE TABLE trips (
+    id TEXT PRIMARY KEY,
+    user_id TEXT NOT NULL,
+    name TEXT NOT NULL,
+    destination TEXT NOT NULL,
+    start_date TEXT NOT NULL,
+    end_date TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
 ```
 
-#### Tabla: days
-```kotlin
-@Entity(tableName = "days")
-data class DayEntity(
-    @PrimaryKey
-    val id: String,
-    val tripId: String,
-    val date: LocalDate,
-    val dayNumber: Int
-)
+### Tabla: days
+```sql
+CREATE TABLE days (
+    id TEXT PRIMARY KEY,
+    trip_id TEXT NOT NULL,
+    date TEXT NOT NULL,
+    day_number INTEGER NOT NULL,
+    FOREIGN KEY (trip_id) REFERENCES trips(id) ON DELETE CASCADE
+);
 ```
 
-#### Tabla: activities
-```kotlin
-@Entity(tableName = "activities")
-data class ActivityEntity(
-    @PrimaryKey
-    val id: String,
-    val dayId: String,
-    val name: String,
-    val description: String,
-    val startTime: LocalTime,
-    val endTime: LocalTime?,
-    val location: String
-)
+### Tabla: activities
+```sql
+CREATE TABLE activities (
+    id TEXT PRIMARY KEY,
+    day_id TEXT NOT NULL,
+    name TEXT NOT NULL,
+    description TEXT,
+    start_time TEXT,
+    end_time TEXT,
+    location TEXT,
+    FOREIGN KEY (day_id) REFERENCES days(id) ON DELETE CASCADE
+);
 ```
 
-### 4. Acceso a Datos (DAOs)
-
-Cada entidad tiene su propio DAO que define las operaciones de base de datos:
-
-#### TripDao
-```kotlin
-@Dao
-interface TripDao {
-    @Query("SELECT * FROM trips")
-    fun getAllTrips(): Flow<List<TripEntity>>
-    
-    @Query("SELECT * FROM trips WHERE id = :tripId")
-    fun getTripById(tripId: String): Flow<TripEntity?>
-    
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertTrip(trip: TripEntity)
-    
-    @Delete
-    suspend fun deleteTrip(trip: TripEntity)
-}
+### Tabla: app_access_logs
+```sql
+CREATE TABLE app_access_logs (
+    id TEXT PRIMARY KEY,
+    user_id TEXT NOT NULL,
+    action TEXT NOT NULL,
+    timestamp TEXT NOT NULL,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
 ```
 
-### 5. Conversión de Tipos
+## Uso de la Base de Datos
 
-Room no puede almacenar directamente tipos complejos como `LocalDate` y `LocalTime`. Se implementan conversores personalizados:
+### Repositorios
 
-```kotlin
-class Converters {
-    @TypeConverter
-    fun fromTimestamp(value: Long?): LocalDate? {
-        return value?.let { LocalDate.ofEpochDay(it) }
-    }
+1. **UserRepository**
+   - `saveUser(user: User)`: Guarda un nuevo usuario
+   - `getUserById(id: String)`: Obtiene un usuario por su ID
+   - `getUserByEmail(email: String)`: Obtiene un usuario por su email
+   - `updateUser(user: User)`: Actualiza los datos de un usuario
+   - `deleteUser(id: String)`: Elimina un usuario
 
-    @TypeConverter
-    fun dateToTimestamp(date: LocalDate?): Long? {
-        return date?.toEpochDay()
-    }
+2. **TripRepository**
+   - `saveTrip(trip: Trip)`: Guarda un nuevo viaje
+   - `getTripsByUserId(userId: String)`: Obtiene los viajes de un usuario
+   - `getTripById(tripId: String)`: Obtiene un viaje por su ID
+   - `updateTrip(trip: Trip)`: Actualiza un viaje
+   - `deleteTrip(tripId: String)`: Elimina un viaje
 
-    @TypeConverter
-    fun fromString(value: String?): LocalTime? {
-        return value?.let { LocalTime.parse(it) }
-    }
+3. **DayRepository**
+   - `saveDay(day: Day)`: Guarda un nuevo día
+   - `getDaysByTripId(tripId: String)`: Obtiene los días de un viaje
+   - `updateDay(day: Day)`: Actualiza un día
+   - `deleteDay(dayId: String)`: Elimina un día
 
-    @TypeConverter
-    fun toString(time: LocalTime?): String? {
-        return time?.toString()
-    }
-}
-```
+4. **ActivityRepository**
+   - `saveActivity(activity: Activity)`: Guarda una nueva actividad
+   - `getActivitiesByDayId(dayId: String)`: Obtiene las actividades de un día
+   - `updateActivity(activity: Activity)`: Actualiza una actividad
+   - `deleteActivity(activityId: String)`: Elimina una actividad
 
-### 6. Repositorio
+5. **AppAccessLogRepository**
+   - `logAccess(userId: String, action: String)`: Registra un acceso a la aplicación
+   - `getAccessLogsByUserId(userId: String)`: Obtiene los logs de acceso de un usuario
 
-El repositorio actúa como una capa de abstracción entre la base de datos y el resto de la aplicación:
+## Autenticación
 
-```kotlin
-@Singleton
-class TripRepositoryImpl @Inject constructor(
-    private val tripDao: TripDao,
-    private val dayDao: DayDao,
-    private val activityDao: ActivityDao
-) : TripRepository {
-    // Implementación de los métodos del repositorio
-}
-```
+La aplicación utiliza Firebase Authentication para la autenticación de usuarios:
 
-### 7. Flujo de Datos
+- **Login**: Autenticación con email y contraseña
+- **Registro**: Creación de cuenta con email y contraseña
+- **Recuperación de contraseña**: Envío de email para restablecer contraseña
+- **Logout**: Cierre de sesión
 
-#### Lectura de Datos
-1. El ViewModel solicita datos al repositorio
-2. El repositorio utiliza los DAOs para obtener los datos
-3. Los datos se convierten de entidades a modelos de dominio
-4. Los datos se emiten como Flow para actualizar la UI
+## Mejoras de UX
 
-#### Escritura de Datos
-1. El ViewModel envía datos al repositorio
-2. El repositorio convierte los modelos de dominio a entidades
-3. Los DAOs realizan las operaciones de inserción/actualización/eliminación
-4. Los cambios se reflejan automáticamente en los Flows observables
+1. **Validaciones**
+   - Nombres de usuario únicos
+   - Fechas válidas para viajes e itinerarios
+   - Horarios válidos para actividades
+   - Campos obligatorios
 
-### 8. Relaciones y Restricciones
+2. **Pickers**
+   - DatePicker para fechas de viaje
+   - TimePicker para horarios de actividades
+   - Formato de fecha: dd/MM/yyyy
 
-- Las relaciones entre tablas se manejan mediante claves foráneas
-- Se implementa eliminación en cascada para mantener la integridad referencial
-- Las operaciones que afectan a múltiples tablas se realizan dentro de transacciones
+3. **Feedback al usuario**
+   - Mensajes de error claros
+   - Indicadores de carga
+   - Confirmaciones de acciones importantes
 
-### 9. Manejo de Errores
-
-- Se implementa manejo de errores en el repositorio
-- Se utilizan transacciones para operaciones complejas
-- Se valida la integridad de los datos antes de la inserción
-- Se registran los errores para facilitar la depuración
-
-### 10. Migración de Base de Datos
-
-Para futuras actualizaciones del esquema:
-
-1. Incrementar el número de versión en la anotación @Database
-2. Crear una clase de migración que extienda Migration
-3. Implementar la lógica de migración en el método migrate()
-4. Registrar la migración en el DatabaseModule
-
-### 11. Validación de Datos
-
-- Los IDs son generados usando UUID para garantizar unicidad
-- Las fechas de fin deben ser posteriores a las fechas de inicio
-- Los nombres de viajes no pueden estar vacíos
-- Las actividades deben tener un nombre y una ubicación
-- Las horas de fin son opcionales pero deben ser posteriores a las horas de inicio si se especifican
-
-## Tecnologías Utilizadas
-
-1. **Base de Datos**
-   - Room Database
-   - SQLite (subyacente)
-
-2. **Inyección de Dependencias**
-   - Dagger Hilt
-
-3. **Concurrencia**
-   - Coroutines
-   - Flow
-
-4. **UI/UX**
-   - Jetpack Compose
-   - Material Design 3
-   - Navigation Component
-
-## Patrones de Diseño
-
-1. Repository Pattern
-2. Factory Pattern
-3. Observer Pattern (Flow)
-4. Dependency Injection
-5. Builder Pattern
-
-## Estrategia de Testing
-
-1. **Unit Tests**
-   - ViewModels
-   - Use Cases
-   - Repositories
-
-2. **Integration Tests**
-   - Database
-   - API
-
-3. **UI Tests**
-   - Compose UI Testing
-   - End-to-End Tests 
+## Versión
+Versión actual: 0.4.0 

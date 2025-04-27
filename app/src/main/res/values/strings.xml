@@ -57,6 +57,7 @@
     <string name="no_trips_message">No trips planned yet</string>
     <string name="home_title">My Trips</string>
     <string name="view_trips">View Trips</string>
+    <string name="app_description">Your app for planning trips</string>
 
     <!-- Trip Screen -->
     <string name="trip_details">Trip Details</string>
@@ -102,12 +103,17 @@
     <string name="empty_password_error">Password cannot be empty</string>
     <string name="password_length_error">Password must be at least 6 characters</string>
     <string name="test_credentials">Test credentials: admin/123456</string>
+    <string name="recover_password">Recover Password</string>
+    <string name="recover_password_message">Enter your email address and we\'ll send you a link to reset your password.</string>
+    <string name="email">Email</string>
+    <string name="recover_password_success">Password recovery email sent. Please check your inbox.</string>
+    <string name="recover_password_error">Error sending recovery email. Please try again.</string>
 
     <!-- About -->
     <string name="about">About</string>
     <string name="about_title">About Us</string>
     <string name="about_description">FlyAway is your app for easy and quick trip planning.</string>
-    <string name="app_version">Version 0.3.0</string>
+    <string name="app_version">Version 0.4.0</string>
     <string name="version">Version</string>
     <string name="developers">Jakub Wysocki</string>
     <string name="about_us_content">FlyAway is a travel planning application designed to make your trip organization effortless. Our mission is to help you create memorable travel experiences with minimal hassle.</string>
@@ -119,6 +125,7 @@
     <string name="terms_content">These are the terms and conditions for using the FlyAway app. By using FlyAway, you agree to abide by these terms and conditions. The app is provided "as is" without any warranties.</string>
     <string name="privacy_policy">Privacy Policy</string>
     <string name="terms_last_updated">Last updated: May 2023</string>
+    <string name="privacy_policy_full">The full privacy policy is available on our website.</string>
 
     <!-- Creación de Viaje -->
     <string name="trip_duration">Duration: %d days</string>

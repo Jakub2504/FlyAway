@@ -3,6 +3,7 @@ package com.example.flyaway.utils
 import android.content.Context
 import android.content.res.Configuration
 import android.os.Build
+import android.util.Log
 import java.util.Locale
 
 /**
@@ -17,7 +18,9 @@ object LocaleManager {
     // Idiomas soportados por la aplicación
     val SUPPORTED_LOCALES = mapOf(
         "es" to Locale("es"),
-        "en" to Locale("en")
+        "en" to Locale("en"),
+        "ca" to Locale("ca"),
+        "pl" to Locale("pl")
     )
     
     /**
@@ -42,6 +45,7 @@ object LocaleManager {
      * @return Contexto con el idioma aplicado.
      */
     fun setLocale(context: Context, language: String): Context {
+        Log.d("LocaleManager", "Estableciendo idioma: $language")
         val locale = SUPPORTED_LOCALES[language] ?: SUPPORTED_LOCALES[DEFAULT_LANGUAGE]!!
         return setLocaleForContext(context, locale)
     }
@@ -53,6 +57,7 @@ object LocaleManager {
      * @return Contexto con el locale aplicado.
      */
     fun setLocaleForContext(context: Context, locale: Locale): Context {
+        Log.d("LocaleManager", "Aplicando locale: ${locale.language}")
         Locale.setDefault(locale)
         
         val configuration = Configuration(context.resources.configuration)

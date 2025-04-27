@@ -97,8 +97,23 @@ class MainActivity : ComponentActivity() {
     
     // Método para recrear la actividad cuando cambia el idioma
     fun applyLanguageAndRecreate(languageCode: String) {
-        LocaleManager.setLocale(this, languageCode)
-        recreate()
+        try {
+            Log.d("MainActivity", "Aplicando idioma: $languageCode")
+            
+            // Aplicar el nuevo idioma
+            val newContext = LocaleManager.setLocale(this, languageCode)
+            resources.updateConfiguration(newContext.resources.configuration, resources.displayMetrics)
+            
+            // Guardar el idioma en las preferencias
+            runBlocking {
+                preferencesRepository.saveLanguage(languageCode)
+            }
+            
+            // Forzar la recreación de la actividad
+            recreate()
+        } catch (e: Exception) {
+            Log.e("MainActivity", "Error al aplicar el idioma", e)
+        }
     }
 
     // Sobrescribir métodos del ciclo de vida para asegurar que el idioma persista
@@ -108,9 +123,9 @@ class MainActivity : ComponentActivity() {
         runBlocking {
             try {
                 val currentLanguage = preferencesRepository.getLanguage().first() ?: LocaleManager.DEFAULT_LANGUAGE
-                val context = LocaleManager.setLocale(this@MainActivity, currentLanguage)
-                resources.updateConfiguration(context.resources.configuration, resources.displayMetrics)
-                Log.d("MainActivity", "Idioma configurado en onResume: $currentLanguage")
+                Log.d("MainActivity", "Configurando idioma en onResume: $currentLanguage")
+                val newContext = LocaleManager.setLocale(this@MainActivity, currentLanguage)
+                resources.updateConfiguration(newContext.resources.configuration, resources.displayMetrics)
             } catch (e: Exception) {
                 Log.e("MainActivity", "Error al configurar idioma en onResume", e)
             }
@@ -123,9 +138,9 @@ class MainActivity : ComponentActivity() {
         runBlocking {
             try {
                 val savedLanguage = preferencesRepository.getLanguage().first() ?: LocaleManager.DEFAULT_LANGUAGE
-                val context = LocaleManager.setLocale(this@MainActivity, savedLanguage)
-                resources.updateConfiguration(context.resources.configuration, resources.displayMetrics)
-                Log.d("MainActivity", "Idioma mantenido en onConfigurationChanged: $savedLanguage")
+                Log.d("MainActivity", "Manteniendo idioma en onConfigurationChanged: $savedLanguage")
+                val newContext = LocaleManager.setLocale(this@MainActivity, savedLanguage)
+                resources.updateConfiguration(newContext.resources.configuration, resources.displayMetrics)
             } catch (e: Exception) {
                 Log.e("MainActivity", "Error al mantener idioma en onConfigurationChanged", e)
             }

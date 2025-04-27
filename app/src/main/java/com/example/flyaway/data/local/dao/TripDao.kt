@@ -7,31 +7,32 @@ import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface TripDao {
-    @Query("SELECT * FROM trips ORDER BY createdAt DESC")
-    fun getAllTrips(): Flow<List<TripEntity>>
+    @Query("SELECT * FROM trips WHERE userId = :userId ORDER BY createdAt DESC")
+    fun getAllTripsByUserId(userId: String): Flow<List<TripEntity>>
 
-    @Query("SELECT * FROM trips WHERE id = :tripId")
-    fun getTripById(tripId: String): Flow<TripEntity?>
+    @Query("SELECT * FROM trips WHERE id = :tripId AND userId = :userId")
+    fun getTripById(tripId: String, userId: String): Flow<TripEntity?>
 
     @Query("""
-        SELECT id, name, destination, 
+        SELECT id, userId, name, destination, 
         strftime('%d/%m/%Y', datetime(startDate/86400000, 'unixepoch')) as startDate,
         strftime('%d/%m/%Y', datetime(endDate/86400000, 'unixepoch')) as endDate,
         strftime('%d/%m/%Y', datetime(createdAt/86400000, 'unixepoch')) as createdAt
         FROM trips 
+        WHERE userId = :userId
         ORDER BY createdAt DESC
     """)
-    fun getAllTripsWithFormattedDates(): Flow<List<TripEntity>>
+    fun getAllTripsWithFormattedDatesByUserId(userId: String): Flow<List<TripEntity>>
 
     @Query("""
-        SELECT id, name, destination, 
+        SELECT id, userId, name, destination, 
         strftime('%d/%m/%Y', datetime(startDate/86400000, 'unixepoch')) as startDate,
         strftime('%d/%m/%Y', datetime(endDate/86400000, 'unixepoch')) as endDate,
         strftime('%d/%m/%Y', datetime(createdAt/86400000, 'unixepoch')) as createdAt
         FROM trips 
-        WHERE id = :tripId
+        WHERE id = :tripId AND userId = :userId
     """)
-    fun getTripByIdWithFormattedDates(tripId: String): Flow<TripEntity?>
+    fun getTripByIdWithFormattedDates(tripId: String, userId: String): Flow<TripEntity?>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertTrip(trip: TripEntity) {
@@ -78,6 +79,6 @@ interface TripDao {
     @Delete
     suspend fun deleteTrip(trip: TripEntity)
 
-    @Query("DELETE FROM trips WHERE id = :tripId")
-    suspend fun deleteTripById(tripId: String)
+    @Query("DELETE FROM trips WHERE id = :tripId AND userId = :userId")
+    suspend fun deleteTripById(tripId: String, userId: String)
 } 

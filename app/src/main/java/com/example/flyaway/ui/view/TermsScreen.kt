@@ -74,7 +74,7 @@ fun TermsScreen(
                     Spacer(modifier = Modifier.height(8.dp))
                     
                     Text(
-                        text = "La política de privacidad completa está disponible en nuestro sitio web.",
+                        text = stringResource(R.string.privacy_policy_full),
                         style = MaterialTheme.typography.bodyMedium
                     )
                 }
