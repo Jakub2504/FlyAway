@@ -1,208 +1,128 @@
 package com.example.flyaway.ui.view
 
-import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.text.KeyboardActions
-import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AccountCircle
-import androidx.compose.material.icons.filled.Lock
-import androidx.compose.material.icons.filled.Visibility
-import androidx.compose.material.icons.filled.VisibilityOff
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.focus.FocusDirection
-import androidx.compose.ui.platform.LocalFocusManager
-import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.input.ImeAction
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
-import androidx.compose.ui.text.input.VisualTransformation
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
-import com.example.flyaway.R
-import com.example.flyaway.ui.transitions.components.LoadingScreen
-import com.example.flyaway.ui.viewmodel.LoginEvent
-import com.example.flyaway.ui.viewmodel.LoginViewModel
+import androidx.navigation.NavController
+import com.example.flyaway.ui.navigation.AppDestinations
+import com.example.flyaway.ui.viewmodel.AuthEvent
+import com.example.flyaway.ui.viewmodel.AuthViewModel
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.launch
 
 @Composable
 fun LoginScreen(
-    onNavigateToHome: () -> Unit
+    navController: NavController,
+    viewModel: AuthViewModel = hiltViewModel()
 ) {
-    val viewModel: LoginViewModel = hiltViewModel()
     val state by viewModel.state.collectAsState()
-    var passwordVisible by remember { mutableStateOf(false) }
-    val focusManager = LocalFocusManager.current
-    
-    LaunchedEffect(key1 = state.isAuthenticated) {
+    val scope = rememberCoroutineScope()
+    val snackbarHostState = remember { SnackbarHostState() }
+
+    LaunchedEffect(state.isAuthenticated) {
         if (state.isAuthenticated) {
-            onNavigateToHome()
+            navController.navigate(AppDestinations.TRIPS_ROUTE) {
+                popUpTo(AppDestinations.LOGIN_ROUTE) { inclusive = true }
+            }
         }
     }
-    
-    if (state.isLoading) {
-        LoadingScreen()
-        return
+
+    LaunchedEffect(state.error) {
+        state.error?.let { error ->
+            scope.launch {
+                snackbarHostState.showSnackbar(
+                    message = error,
+                    duration = androidx.compose.material3.SnackbarDuration.Short
+                )
+            }
+        }
     }
-    
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(16.dp),
-        contentAlignment = Alignment.Center
-    ) {
+
+    Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) }
+    ) { padding ->
         Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
             modifier = Modifier
-                .fillMaxWidth()
-                .verticalScroll(rememberScrollState())
+                .fillMaxSize()
+                .padding(padding)
+                .padding(16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
         ) {
-            Text(
-                text = stringResource(R.string.app_name),
-                style = MaterialTheme.typography.headlineLarge,
-                color = MaterialTheme.colorScheme.primary,
-                textAlign = TextAlign.Center
-            )
-            
-            Spacer(modifier = Modifier.height(40.dp))
-            
-            Text(
-                text = stringResource(R.string.login_title),
-                style = MaterialTheme.typography.titleLarge
-            )
-            
-            Spacer(modifier = Modifier.height(24.dp))
-            
-            // Campo de usuario
-            OutlinedTextField(
-                value = state.username,
-                onValueChange = { viewModel.onEvent(LoginEvent.OnUsernameChange(it)) },
-                label = { Text(text = stringResource(R.string.user_id)) },
-                singleLine = true,
-                leadingIcon = {
-                    Icon(
-                        imageVector = Icons.Default.AccountCircle,
-                        contentDescription = null
-                    )
-                },
-                isError = state.usernameError != null,
-                keyboardOptions = KeyboardOptions(
-                    keyboardType = KeyboardType.Text,
-                    imeAction = ImeAction.Next
-                ),
-                keyboardActions = KeyboardActions(
-                    onNext = { focusManager.moveFocus(FocusDirection.Down) }
-                ),
-                modifier = Modifier.fillMaxWidth()
-            )
-            
-            // Mensaje de error de usuario
-            if (state.usernameError != null) {
-                Text(
-                    text = stringResource(state.usernameError ?: R.string.error),
-                    color = MaterialTheme.colorScheme.error,
-                    style = MaterialTheme.typography.bodySmall,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(start = 16.dp, top = 4.dp)
-                )
-            }
-            
+            var email by remember { mutableStateOf("") }
+            var password by remember { mutableStateOf("") }
+
+            Text("Login")
             Spacer(modifier = Modifier.height(16.dp))
-            
-            // Campo de contraseña
+
             OutlinedTextField(
-                value = state.password,
-                onValueChange = { viewModel.onEvent(LoginEvent.OnPasswordChange(it)) },
-                label = { Text(text = stringResource(R.string.password)) },
-                singleLine = true,
-                leadingIcon = {
-                    Icon(
-                        imageVector = Icons.Default.Lock,
-                        contentDescription = null
-                    )
-                },
-                trailingIcon = {
-                    IconButton(onClick = { passwordVisible = !passwordVisible }) {
-                        Icon(
-                            imageVector = if (passwordVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility,
-                            contentDescription = if (passwordVisible) 
-                                stringResource(R.string.hide_password) 
-                                else stringResource(R.string.show_password)
-                        )
-                    }
-                },
-                visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
-                isError = state.passwordError != null,
-                keyboardOptions = KeyboardOptions(
-                    keyboardType = KeyboardType.Password,
-                    imeAction = ImeAction.Done
-                ),
-                keyboardActions = KeyboardActions(
-                    onDone = { 
-                        focusManager.clearFocus()
-                        viewModel.onEvent(LoginEvent.OnLoginClick)
-                    }
-                ),
+                value = email,
+                onValueChange = { email = it },
+                label = { Text("Email") },
                 modifier = Modifier.fillMaxWidth()
             )
-            
-            // Mensaje de error de contraseña
-            if (state.passwordError != null) {
-                Text(
-                    text = stringResource(state.passwordError ?: R.string.error),
-                    color = MaterialTheme.colorScheme.error,
-                    style = MaterialTheme.typography.bodySmall,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(start = 16.dp, top = 4.dp)
-                )
-            }
-            
-            Spacer(modifier = Modifier.height(32.dp))
-            
-            // Botón de login
-            Button(
-                onClick = { viewModel.onEvent(LoginEvent.OnLoginClick) },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(50.dp)
-            ) {
-                Text(text = stringResource(R.string.login))
-            }
-            
-            // Mensaje de error general
-            if (state.error != null) {
-                Spacer(modifier = Modifier.height(16.dp))
-                
-                Card(
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.errorContainer
-                    ),
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            OutlinedTextField(
+                value = password,
+                onValueChange = { password = it },
+                label = { Text("Password") },
+                visualTransformation = PasswordVisualTransformation(),
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            if (state.isLoading) {
+                CircularProgressIndicator()
+            } else {
+                Button(
+                    onClick = { viewModel.onEvent(AuthEvent.Login(email, password)) },
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Text(
-                        text = stringResource(state.error ?: R.string.error),
-                        color = MaterialTheme.colorScheme.onErrorContainer,
-                        textAlign = TextAlign.Center,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(16.dp)
-                    )
+                    Text("Login")
                 }
             }
-            
-            Spacer(modifier = Modifier.height(32.dp))
-            
-            Text(
-                text = stringResource(R.string.test_credentials),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.outline
-            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            TextButton(
+                onClick = { navController.navigate(AppDestinations.REGISTER_ROUTE) }
+            ) {
+                Text("Don't have an account? Register")
+            }
+
+            TextButton(
+                onClick = { navController.navigate(AppDestinations.RESET_PASSWORD_ROUTE) }
+            ) {
+                Text("Forgot password?")
+            }
         }
     }
 } 

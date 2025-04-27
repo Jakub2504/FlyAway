@@ -15,7 +15,8 @@ data class Trip(
     val startDate: LocalDate,
     val endDate: LocalDate,
     val days: List<Day> = emptyList(),
-    val createdAt: LocalDate = LocalDate.now()
+    val createdAt: LocalDate = LocalDate.now(),
+    val userId: String
 )
 
 // Modelo para días en el itinerario

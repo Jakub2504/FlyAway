@@ -7,14 +7,16 @@ package com.example.flyaway.ui.navigation
 object AppDestinations {
     
     const val SPLASH_ROUTE = "splash"
-    const val HOME_ROUTE = "home"
     const val LOGIN_ROUTE = "login"
     const val REGISTER_ROUTE = "register"
+    const val RESET_PASSWORD_ROUTE = "reset_password"
+    const val TRIPS_ROUTE = "trips"
+    const val TRIP_DETAILS_ROUTE = "trip_details"
+    const val CREATE_TRIP_ROUTE = "create_trip"
     const val SETTINGS_ROUTE = "settings"
     const val PROFILE_ROUTE = "profile"
     const val ABOUT_ROUTE = "about"
     const val TERMS_ROUTE = "terms"
-    const val CREATE_TRIP_ROUTE = "create_trip"
     
     // Rutas con parámetros
     object TripDetails {

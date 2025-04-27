@@ -7,6 +7,8 @@ import android.util.Log
 import com.example.flyaway.data.local.FlyAwayDatabase
 import com.example.flyaway.utils.PreferencesRepository
 import com.example.flyaway.utils.LocaleManager
+import com.google.firebase.FirebaseApp
+import com.google.firebase.auth.FirebaseAuth
 import dagger.hilt.android.HiltAndroidApp
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -15,6 +17,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import javax.inject.Inject
+import java.io.File
 
 @HiltAndroidApp
 class MyApp : Application() {
@@ -30,13 +33,62 @@ class MyApp : Application() {
     override fun onCreate() {
         super.onCreate()
         
-        // Inicializar la base de datos
+        // Inicializar Firebase con mejor manejo de errores y logging detallado
         try {
-            // Forzar la inicialización de la base de datos
-            database.openHelper.writableDatabase
-            Log.d("MyApp", "Base de datos inicializada correctamente")
+            Log.d("MyApp", "Intentando inicializar Firebase...")
+            
+            // Verificar si ya está inicializado
+            val apps = FirebaseApp.getApps(this)
+            Log.d("MyApp", "Firebase apps count: ${apps.size}")
+            
+            if (apps.isEmpty()) {
+                FirebaseApp.initializeApp(this)
+                Log.d("MyApp", "Firebase inicializado correctamente")
+            } else {
+                Log.d("MyApp", "Firebase ya estaba inicializado")
+            }
+            
+            // Verificar la configuración
+            val firebaseApp = FirebaseApp.getInstance()
+            Log.d("MyApp", "Firebase App Name: ${firebaseApp.name}")
+            Log.d("MyApp", "Firebase App Options: ${firebaseApp.options}")
+            
+            // Verificar la autenticación
+            val auth = FirebaseAuth.getInstance()
+            Log.d("MyApp", "Firebase Auth initialized: ${auth != null}")
+            
+            // Verificar que la configuración sea válida
+            if (auth == null) {
+                throw IllegalStateException("Firebase Auth no se pudo inicializar")
+            }
+            
+            // Verificar que el archivo google-services.json esté presente
+            val googleServicesFile = File(filesDir, "google-services.json")
+            if (!googleServicesFile.exists()) {
+                Log.e("MyApp", "google-services.json no encontrado en ${googleServicesFile.absolutePath}")
+                throw IllegalStateException("google-services.json no encontrado")
+            }
+            
         } catch (e: Exception) {
-            Log.e("MyApp", "Error al inicializar la base de datos", e)
+            Log.e("MyApp", "Error al inicializar Firebase", e)
+            e.printStackTrace()
+            // Forzar una nueva inicialización
+            try {
+                FirebaseApp.initializeApp(this)
+                Log.d("MyApp", "Firebase reinicializado después de error")
+            } catch (e2: Exception) {
+                Log.e("MyApp", "Error al reinicializar Firebase", e2)
+            }
+        }
+        
+        // Inicializar la base de datos
+        applicationScope.launch {
+            try {
+                database.tripDao().getAllTrips().first()
+                Log.d("MyApp", "Base de datos inicializada correctamente")
+            } catch (e: Exception) {
+                Log.e("MyApp", "Error al inicializar la base de datos", e)
+            }
         }
         
         // Configurar el idioma al iniciar la aplicación
