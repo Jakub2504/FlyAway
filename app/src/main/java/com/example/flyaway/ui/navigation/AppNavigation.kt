@@ -7,6 +7,7 @@ import com.example.flyaway.ui.view.*
 import com.google.accompanist.navigation.animation.AnimatedNavHost
 import com.google.accompanist.navigation.animation.composable
 import com.example.flyaway.ui.transitions.animations.*
+import androidx.hilt.navigation.compose.hiltViewModel
 
 /**
  * Navegación principal de la aplicación.
@@ -17,17 +18,17 @@ import com.example.flyaway.ui.transitions.animations.*
 fun AppNavigation(navController: NavHostController) {
     AnimatedNavHost(
         navController = navController,
-        startDestination = AppScreens.SplashScreen.route
+        startDestination = AppDestinations.SPLASH_ROUTE
     ) {
         // Pantalla de Splash
         composable(
-            route = AppScreens.SplashScreen.route,
+            route = AppDestinations.SPLASH_ROUTE,
             exitTransition = { splashExitTransition() }
         ) {
             SplashScreen(
                 onSplashComplete = {
-                    navController.navigate(AppScreens.LoginScreen.route) {
-                        popUpTo(AppScreens.SplashScreen.route) { inclusive = true }
+                    navController.navigate(AppDestinations.LOGIN_ROUTE) {
+                        popUpTo(AppDestinations.SPLASH_ROUTE) { inclusive = true }
                     }
                 }
             )
@@ -35,49 +36,69 @@ fun AppNavigation(navController: NavHostController) {
         
         // Pantalla de Login
         composable(
-            route = AppScreens.LoginScreen.route,
+            route = AppDestinations.LOGIN_ROUTE,
             enterTransition = { enterTransition() },
             exitTransition = { exitTransition() }
         ) {
             LoginScreen(
-                onNavigateToHome = {
-                    navController.navigate(AppScreens.HomeScreen.route) {
-                        popUpTo(AppScreens.LoginScreen.route) { inclusive = true }
+                navController = navController,
+                viewModel = hiltViewModel()
+            )
+        }
+        
+        // Pantalla de Registro
+        composable(
+            route = AppDestinations.REGISTER_ROUTE,
+            enterTransition = { enterTransition() },
+            exitTransition = { exitTransition() }
+        ) {
+            RegisterScreen(
+                navController = navController,
+                viewModel = hiltViewModel()
+            )
+        }
+        
+        // Pantalla de Recuperación de Contraseña
+        composable(
+            route = AppDestinations.RESET_PASSWORD_ROUTE,
+            enterTransition = { enterTransition() },
+            exitTransition = { exitTransition() }
+        ) {
+            ResetPasswordScreen(
+                navController = navController,
+                viewModel = hiltViewModel(),
+                onNavigateToLogin = {
+                    navController.navigate(AppDestinations.LOGIN_ROUTE) {
+                        popUpTo(AppDestinations.RESET_PASSWORD_ROUTE) { inclusive = true }
                     }
                 }
             )
         }
         
-        // Pantalla de Home
+        // Pantalla de Viajes
         composable(
-            route = AppScreens.HomeScreen.route,
+            route = AppDestinations.TRIPS_ROUTE,
             enterTransition = { enterTransition() },
             exitTransition = { exitTransition() },
             popEnterTransition = { popEnterTransition() },
             popExitTransition = { popExitTransition() }
         ) {
-            HomeScreen(
+            TripsScreen(
                 onNavigateToCreateTrip = {
-                    navController.navigate(AppScreens.CreateTripScreen.route)
+                    navController.navigate(AppDestinations.CREATE_TRIP_ROUTE)
                 },
                 onNavigateToTripDetails = { tripId ->
-                    navController.navigate(AppScreens.TripDetailsScreen.createRoute(tripId))
+                    navController.navigate("${AppDestinations.TRIP_DETAILS_ROUTE}/$tripId")
                 },
                 onNavigateToSettings = {
-                    navController.navigate(AppScreens.SettingsScreen.route)
-                },
-                onNavigateToAboutUs = {
-                    navController.navigate(AppScreens.AboutScreen.route)
-                },
-                onNavigateToTerms = {
-                    navController.navigate(AppScreens.TermsScreen.route)
+                    navController.navigate(AppDestinations.SETTINGS_ROUTE)
                 }
             )
         }
         
         // Pantalla de Creación de Viaje
         composable(
-            route = AppScreens.CreateTripScreen.route,
+            route = AppDestinations.CREATE_TRIP_ROUTE,
             enterTransition = { enterTransition() },
             exitTransition = { exitTransition() },
             popEnterTransition = { popEnterTransition() },
@@ -90,7 +111,7 @@ fun AppNavigation(navController: NavHostController) {
         
         // Pantalla de Detalles de Viaje
         composable(
-            route = AppScreens.TripDetailsScreen.route,
+            route = "${AppDestinations.TRIP_DETAILS_ROUTE}/{tripId}",
             enterTransition = { enterTransition() },
             exitTransition = { exitTransition() },
             popEnterTransition = { popEnterTransition() },
@@ -100,17 +121,13 @@ fun AppNavigation(navController: NavHostController) {
             TripDetailsScreen(
                 tripId = tripId,
                 onBackClick = { navController.popBackStack() },
-                onNavigateToHome = { 
-                    navController.navigate(AppScreens.HomeScreen.route) {
-                        popUpTo(AppScreens.HomeScreen.route) { inclusive = true }
-                    }
-                }
+                onNavigateToHome = { navController.navigate(AppDestinations.TRIPS_ROUTE) }
             )
         }
         
         // Pantalla de Configuración
         composable(
-            route = AppScreens.SettingsScreen.route,
+            route = AppDestinations.SETTINGS_ROUTE,
             enterTransition = { enterTransition() },
             exitTransition = { exitTransition() },
             popEnterTransition = { popEnterTransition() },
@@ -118,34 +135,20 @@ fun AppNavigation(navController: NavHostController) {
         ) {
             SettingsScreen(
                 onNavigateBack = { navController.popBackStack() },
-                onNavigateToLanguage = { 
-                    navController.navigate(AppScreens.LanguageSettingsScreen.route) 
-                },
                 onNavigateToProfile = { 
-                    navController.navigate(AppScreens.ProfileScreen.route) 
+                    navController.navigate(AppDestinations.PROFILE_ROUTE) 
                 },
                 onLogout = {
-                    navController.navigate(AppScreens.LoginScreen.route) {
-                        popUpTo(AppScreens.HomeScreen.route) { inclusive = true }
+                    navController.navigate(AppDestinations.LOGIN_ROUTE) {
+                        popUpTo(AppDestinations.TRIPS_ROUTE) { inclusive = true }
                     }
                 }
             )
         }
         
-        // Pantalla de Configuración de Idioma
-        composable(
-            route = AppScreens.LanguageSettingsScreen.route,
-            enterTransition = { enterTransition() },
-            exitTransition = { exitTransition() }
-        ) {
-            LanguageSettingsScreen(
-                onNavigateBack = { navController.popBackStack() }
-            )
-        }
-        
         // Pantalla de Perfil
         composable(
-            route = AppScreens.ProfileScreen.route,
+            route = AppDestinations.PROFILE_ROUTE,
             enterTransition = { enterTransition() },
             exitTransition = { exitTransition() },
             popEnterTransition = { popEnterTransition() },
@@ -158,7 +161,7 @@ fun AppNavigation(navController: NavHostController) {
         
         // Pantalla de Acerca De
         composable(
-            route = AppScreens.AboutScreen.route,
+            route = AppDestinations.ABOUT_ROUTE,
             enterTransition = { enterTransition() },
             exitTransition = { exitTransition() },
             popEnterTransition = { popEnterTransition() },
@@ -171,7 +174,7 @@ fun AppNavigation(navController: NavHostController) {
         
         // Pantalla de Términos y Condiciones
         composable(
-            route = AppScreens.TermsScreen.route,
+            route = AppDestinations.TERMS_ROUTE,
             enterTransition = { enterTransition() },
             exitTransition = { exitTransition() },
             popEnterTransition = { popEnterTransition() },

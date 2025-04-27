@@ -15,6 +15,7 @@ import kotlinx.coroutines.launch
 import java.time.LocalDate
 import java.util.UUID
 import javax.inject.Inject
+import com.google.firebase.auth.FirebaseAuth
 
 /**
  * Estado para la pantalla de creación de viaje
@@ -158,14 +159,7 @@ class CreateTripViewModel @Inject constructor(
             _state.update { it.copy(isLoading = true, error = null) }
             
             try {
-                val trip = Trip(
-                    id = UUID.randomUUID().toString(),
-                    name = currentState.name.trim(),
-                    destination = currentState.destination.trim(),
-                    startDate = currentState.startDate!!,
-                    endDate = currentState.endDate!!,
-                    days = emptyList()
-                )
+                val trip = createTripEntity()
                 
                 // Guardar el viaje
                 val savedTrip = tripRepository.saveTrip(trip)
@@ -182,6 +176,18 @@ class CreateTripViewModel @Inject constructor(
                 ) }
             }
         }
+    }
+
+    private fun createTripEntity(): Trip {
+        val currentState = _state.value
+        return Trip(
+            name = currentState.name,
+            destination = currentState.destination,
+            startDate = currentState.startDate ?: LocalDate.now(),
+            endDate = currentState.endDate ?: LocalDate.now(),
+            createdAt = LocalDate.now(),
+            userId = FirebaseAuth.getInstance().currentUser?.uid ?: throw IllegalStateException("User must be logged in")
+        )
     }
 
     private fun validateName(name: String): String? {

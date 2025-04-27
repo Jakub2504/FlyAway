@@ -13,14 +13,19 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.example.flyaway.R
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.navigation.NavController
+import com.example.flyaway.ui.navigation.AppDestinations
+import com.example.flyaway.ui.viewmodel.AuthEvent
+import com.example.flyaway.ui.viewmodel.AuthViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(
     onNavigateBack: () -> Unit,
-    onNavigateToLanguage: () -> Unit,
     onNavigateToProfile: () -> Unit,
-    onLogout: () -> Unit
+    onLogout: () -> Unit,
+    viewModel: AuthViewModel = hiltViewModel()
 ) {
     var showLogoutDialog by remember { mutableStateOf(false) }
     
@@ -68,12 +73,6 @@ fun SettingsScreen(
                 .verticalScroll(rememberScrollState())
         ) {
             SettingsCategory(title = stringResource(R.string.settings))
-            
-            SettingsItem(
-                title = stringResource(R.string.language),
-                icon = Icons.Default.Language,
-                onClick = onNavigateToLanguage
-            )
             
             SettingsItem(
                 title = stringResource(R.string.theme),

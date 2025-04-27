@@ -10,6 +10,7 @@ import com.example.flyaway.domain.model.Activity
 import com.example.flyaway.domain.model.Day
 import com.example.flyaway.domain.model.Trip
 import com.example.flyaway.domain.repository.TripRepository
+import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
@@ -25,80 +26,114 @@ import javax.inject.Singleton
 class TripRepositoryImpl @Inject constructor(
     private val tripDao: TripDao,
     private val dayDao: DayDao,
-    private val activityDao: ActivityDao
+    private val activityDao: ActivityDao,
+    private val firebaseAuth: FirebaseAuth
 ) : TripRepository {
 
     override fun getAllTrips(): Flow<List<Trip>> {
-        return tripDao.getAllTrips().map { tripEntities ->
-            tripEntities.map { tripEntity ->
-                // Esta función carga solo los datos básicos del viaje
-                // Los días y actividades se cargarán bajo demanda
-                tripEntity.toDomainModel()
+        val currentUser = firebaseAuth.currentUser
+        return if (currentUser != null) {
+            tripDao.getAllTrips().map { tripEntities ->
+                tripEntities
+                    .filter { it.userId == currentUser.uid }
+                    .map { tripEntity ->
+                        tripEntity.toDomainModel()
+                    }
             }
+        } else {
+            tripDao.getAllTrips().map { emptyList() }
         }
     }
 
     override fun getTripById(tripId: String): Flow<Trip?> {
-        return tripDao.getTripById(tripId).map { tripEntity ->
-            tripEntity?.let {
-                // Cuando solicitamos un viaje específico, cargamos los días
-                // y actividades asociadas
-                val days = dayDao.getDaysByTripId(it.id).first().map { dayEntity ->
-                    val activities = activityDao.getActivitiesByDayId(dayEntity.id).first()
-                        .map { activityEntity -> activityEntity.toDomainModel() }
-                    dayEntity.toDomainModel().copy(activities = activities)
+        val currentUser = firebaseAuth.currentUser
+        return if (currentUser != null) {
+            tripDao.getTripById(tripId).map { tripEntity ->
+                tripEntity?.let {
+                    if (it.userId == currentUser.uid) {
+                        val days = dayDao.getDaysByTripId(it.id).first().map { dayEntity ->
+                            val activities = activityDao.getActivitiesByDayId(dayEntity.id).first()
+                                .map { activityEntity -> activityEntity.toDomainModel() }
+                            dayEntity.toDomainModel().copy(activities = activities)
+                        }
+                        it.toDomainModel().copy(days = days)
+                    } else {
+                        null
+                    }
                 }
-                it.toDomainModel().copy(days = days)
             }
+        } else {
+            tripDao.getTripById(tripId).map { null }
         }
     }
 
     override suspend fun saveTrip(trip: Trip): Trip {
-        tripDao.insertTrip(trip.toEntity())
-        trip.days.forEach { day ->
-            dayDao.insertDay(day.toEntity(trip.id))
+        val currentUser = firebaseAuth.currentUser
+        if (currentUser == null) {
+            throw IllegalStateException("User must be logged in to save trips")
+        }
+
+        val tripWithUserId = trip.copy(userId = currentUser.uid)
+        tripDao.insertTrip(tripWithUserId.toEntity())
+        tripWithUserId.days.forEach { day ->
+            dayDao.insertDay(day.toEntity(tripWithUserId.id))
             day.activities.forEach { activity ->
                 activityDao.insertActivity(activity.toEntity(day.id))
             }
         }
-        return trip
+        return tripWithUserId
     }
 
     override suspend fun deleteTrip(tripId: String) {
-        tripDao.deleteTripById(tripId)
+        val currentUser = firebaseAuth.currentUser
+        if (currentUser == null) {
+            throw IllegalStateException("User must be logged in to delete trips")
+        }
+
+        val trip = tripDao.getTripById(tripId).first()
+        if (trip?.userId == currentUser.uid) {
+            tripDao.deleteTripById(tripId)
+        } else {
+            throw IllegalStateException("Cannot delete trip that doesn't belong to current user")
+        }
     }
 
     override suspend fun createInitialDaysForTrip(trip: Trip): Trip {
-        val daysBetween = ChronoUnit.DAYS.between(trip.startDate, trip.endDate).toInt() + 1
+        val currentUser = firebaseAuth.currentUser
+        if (currentUser == null) {
+            throw IllegalStateException("User must be logged in to create trips")
+        }
+
+        val tripWithUserId = trip.copy(userId = currentUser.uid)
+        val daysBetween = ChronoUnit.DAYS.between(tripWithUserId.startDate, tripWithUserId.endDate).toInt() + 1
         val days = (0 until daysBetween).map { dayOffset ->
-            val date = trip.startDate.plusDays(dayOffset.toLong())
+            val date = tripWithUserId.startDate.plusDays(dayOffset.toLong())
             Day(
-                tripId = trip.id,
+                tripId = tripWithUserId.id,
                 date = date,
-                dayNumber = dayOffset + 1  // Esto asegura que los días estén numerados correctamente desde el principio
+                dayNumber = dayOffset + 1
             )
         }
 
-        // Crear un nuevo viaje con los días
-        val updatedTrip = trip.copy(days = days)
-
-        // Guardar el viaje actualizado
+        val updatedTrip = tripWithUserId.copy(days = days)
         return saveTrip(updatedTrip)
     }
 
     override suspend fun saveDay(day: Day): Trip? {
+        val currentUser = firebaseAuth.currentUser
+        if (currentUser == null) {
+            throw IllegalStateException("User must be logged in to save days")
+        }
+
         val trip = getTripById(day.tripId).first() ?: return null
+        if (trip.userId != currentUser.uid) {
+            throw IllegalStateException("Cannot save day for trip that doesn't belong to current user")
+        }
 
-        // Primero, insertar o actualizar el día
         dayDao.insertDay(day.toEntity(trip.id))
-
-        // Obtener todos los días actualizados para este viaje
         val allDays = dayDao.getDaysByTripId(trip.id).first()
-
-        // Ordenar los días por fecha y recalcular los números de día
         val sortedDays = allDays.sortedBy { it.date }
             .mapIndexed { index, dayEntity ->
-                // Si el número de día es diferente, actualizarlo
                 if (dayEntity.dayNumber != index + 1) {
                     val updatedDay = dayEntity.copy(dayNumber = index + 1)
                     dayDao.updateDay(updatedDay)
@@ -108,100 +143,93 @@ class TripRepositoryImpl @Inject constructor(
                 }
             }
 
-        // Convertir a modelos de dominio y cargar las actividades
         val domainDays = sortedDays.map { dayEntity ->
             val activities = activityDao.getActivitiesByDayId(dayEntity.id).first()
                 .map { it.toDomainModel() }
             dayEntity.toDomainModel().copy(activities = activities)
         }
 
-        // Actualizar el viaje con los días actualizados
         val updatedTrip = trip.copy(days = domainDays)
         tripDao.updateTrip(updatedTrip.toEntity())
-
         return updatedTrip
     }
 
     override suspend fun deleteDay(tripId: String, dayId: String): Trip? {
-        val trip = getTripById(tripId).first() ?: return null
-
-        // Eliminar el día
-        dayDao.deleteDayById(dayId)
-
-        // Obtener todos los días restantes para este viaje
-        val remainingDays = dayDao.getDaysByTripId(tripId).first()
-
-        // Si no quedan días, simplemente devolver el viaje actualizado
-        if (remainingDays.isEmpty()) {
-            val updatedTrip = trip.copy(days = emptyList())
-            tripDao.updateTrip(updatedTrip.toEntity())
-            return updatedTrip
+        val currentUser = firebaseAuth.currentUser
+        if (currentUser == null) {
+            throw IllegalStateException("User must be logged in to delete days")
         }
 
-        // Ordenar los días por fecha y renumerarlos
-        val renumberedDays = remainingDays.sortedBy { it.date }
+        val trip = getTripById(tripId).first() ?: return null
+        if (trip.userId != currentUser.uid) {
+            throw IllegalStateException("Cannot delete day from trip that doesn't belong to current user")
+        }
+
+        dayDao.deleteDayById(dayId)
+        val remainingDays = dayDao.getDaysByTripId(tripId).first()
+        val sortedDays = remainingDays.sortedBy { it.date }
             .mapIndexed { index, dayEntity ->
-                val updatedDay = dayEntity.copy(dayNumber = index + 1)
-                // Solo actualizar si el número cambió
-                if (updatedDay.dayNumber != dayEntity.dayNumber) {
+                if (dayEntity.dayNumber != index + 1) {
+                    val updatedDay = dayEntity.copy(dayNumber = index + 1)
                     dayDao.updateDay(updatedDay)
+                    updatedDay
+                } else {
+                    dayEntity
                 }
-                updatedDay
             }
 
-        // Convertir a modelos de dominio y cargar las actividades
-        val domainDays = renumberedDays.map { dayEntity ->
+        val domainDays = sortedDays.map { dayEntity ->
             val activities = activityDao.getActivitiesByDayId(dayEntity.id).first()
                 .map { it.toDomainModel() }
             dayEntity.toDomainModel().copy(activities = activities)
         }
 
-        // Actualizar el viaje con los días actualizados
         val updatedTrip = trip.copy(days = domainDays)
         tripDao.updateTrip(updatedTrip.toEntity())
-
         return updatedTrip
     }
 
     override suspend fun saveActivity(activity: Activity): Day? {
+        val currentUser = firebaseAuth.currentUser
+        if (currentUser == null) {
+            throw IllegalStateException("User must be logged in to save activities")
+        }
+
         val day = dayDao.getDayById(activity.dayId).first() ?: return null
+        val trip = getTripById(day.tripId).first() ?: return null
+        if (trip.userId != currentUser.uid) {
+            throw IllegalStateException("Cannot save activity for trip that doesn't belong to current user")
+        }
 
         activityDao.insertActivity(activity.toEntity(day.id))
-
-        // Obtener todas las actividades actualizadas para este día
-        val updatedActivities = activityDao.getActivitiesByDayId(day.id).first()
+        val activities = activityDao.getActivitiesByDayId(day.id).first()
             .map { it.toDomainModel() }
-
-        // Actualizar el día con las nuevas actividades
-        val updatedDay = day.toDomainModel().copy(activities = updatedActivities)
-
-        // Guardar el día actualizado
-        dayDao.updateDay(updatedDay.toEntity(updatedDay.tripId))
-
+        val updatedDay = day.toDomainModel().copy(activities = activities)
+        dayDao.updateDay(updatedDay.toEntity(day.tripId))
         return updatedDay
     }
 
     override suspend fun deleteActivity(dayId: String, activityId: String): Day? {
+        val currentUser = firebaseAuth.currentUser
+        if (currentUser == null) {
+            throw IllegalStateException("User must be logged in to delete activities")
+        }
+
         val day = dayDao.getDayById(dayId).first() ?: return null
+        val trip = getTripById(day.tripId).first() ?: return null
+        if (trip.userId != currentUser.uid) {
+            throw IllegalStateException("Cannot delete activity from trip that doesn't belong to current user")
+        }
 
         activityDao.deleteActivityById(activityId)
-
-        // Obtener todas las actividades restantes para este día
         val remainingActivities = activityDao.getActivitiesByDayId(dayId).first()
             .map { it.toDomainModel() }
-
-        // Actualizar el día con las actividades actualizadas
         val updatedDay = day.toDomainModel().copy(activities = remainingActivities)
-
-        // Guardar el día actualizado
-        dayDao.updateDay(updatedDay.toEntity(updatedDay.tripId))
-
+        dayDao.updateDay(updatedDay.toEntity(day.tripId))
         return updatedDay
     }
 
     private fun TripEntity.toDomainModel(): Trip {
-        // Crear un viaje sin días inicialmente para optimizar el rendimiento
-        // Los días se cargarán bajo demanda en getTripById
         return Trip(
             id = id,
             name = name,
@@ -209,7 +237,8 @@ class TripRepositoryImpl @Inject constructor(
             startDate = startDate,
             endDate = endDate,
             createdAt = createdAt,
-            days = emptyList()
+            days = emptyList(),
+            userId = userId
         )
     }
 
@@ -220,7 +249,8 @@ class TripRepositoryImpl @Inject constructor(
             destination = destination,
             startDate = startDate,
             endDate = endDate,
-            createdAt = createdAt
+            createdAt = createdAt,
+            userId = userId
         )
     }
 

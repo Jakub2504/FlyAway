@@ -14,7 +14,7 @@ interface TripDao {
     fun getTripById(tripId: String): Flow<TripEntity?>
 
     @Query("""
-        SELECT id, name, destination, 
+        SELECT id, name, destination, userId,
         strftime('%d/%m/%Y', datetime(startDate/86400000, 'unixepoch')) as startDate,
         strftime('%d/%m/%Y', datetime(endDate/86400000, 'unixepoch')) as endDate,
         strftime('%d/%m/%Y', datetime(createdAt/86400000, 'unixepoch')) as createdAt
@@ -24,7 +24,7 @@ interface TripDao {
     fun getAllTripsWithFormattedDates(): Flow<List<TripEntity>>
 
     @Query("""
-        SELECT id, name, destination, 
+        SELECT id, name, destination, userId,
         strftime('%d/%m/%Y', datetime(startDate/86400000, 'unixepoch')) as startDate,
         strftime('%d/%m/%Y', datetime(endDate/86400000, 'unixepoch')) as endDate,
         strftime('%d/%m/%Y', datetime(createdAt/86400000, 'unixepoch')) as createdAt

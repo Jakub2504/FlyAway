@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -27,9 +28,11 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.example.flyaway.R
-import com.example.flyaway.ui.navigation.AppScreens
+import com.example.flyaway.ui.navigation.AppDestinations
+import com.example.flyaway.ui.viewmodel.AuthViewModel
 import kotlinx.coroutines.delay
 
 /**
@@ -37,25 +40,27 @@ import kotlinx.coroutines.delay
  * Muestra el logo de la aplicación y redirige a la pantalla principal después de un tiempo.
  */
 @Composable
-fun SplashScreen(navController: NavController) {
-    LaunchedEffect(key1 = true) {
-        delay(2000) // Mostrar splash por 2 segundos
-        navController.navigate(AppScreens.HomeScreen.route) {
-            popUpTo(AppScreens.SplashScreen.route) { inclusive = true }
+fun SplashScreen(
+    navController: NavController,
+    viewModel: AuthViewModel = hiltViewModel()
+) {
+    LaunchedEffect(Unit) {
+        if (viewModel.state.value.isAuthenticated) {
+            navController.navigate(AppDestinations.TRIPS_ROUTE) {
+                popUpTo(AppDestinations.SPLASH_ROUTE) { inclusive = true }
+            }
+        } else {
+            navController.navigate(AppDestinations.LOGIN_ROUTE) {
+                popUpTo(AppDestinations.SPLASH_ROUTE) { inclusive = true }
+            }
         }
     }
-    
+
     Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background),
+        modifier = Modifier.fillMaxSize(),
         contentAlignment = Alignment.Center
     ) {
-        Image(
-            painter = painterResource(id = R.drawable.ic_launcher_foreground),
-            contentDescription = "Logo",
-            modifier = Modifier.size(200.dp)
-        )
+        CircularProgressIndicator()
     }
 }
 
