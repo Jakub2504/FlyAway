@@ -6,17 +6,20 @@ import com.example.flyaway.data.local.dao.AccessLogDao
 import com.example.flyaway.data.local.dao.UserDao
 import com.example.flyaway.data.local.entity.AccessLogEntity
 import com.example.flyaway.data.local.entity.UserEntity
-import com.example.flyaway.data.repository.AuthRepository
+import com.example.flyaway.domain.repository.AuthRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import java.time.LocalDateTime
 import javax.inject.Inject
+import com.google.firebase.auth.FirebaseUser
 
+// Estado de autenticación
 data class AuthState(
     val isLoading: Boolean = false,
     val error: String? = null,
-    val isAuthenticated: Boolean = false
+    val isAuthenticated: Boolean = false,
+    val user: FirebaseUser? = null
 )
 
 @HiltViewModel
@@ -28,6 +31,78 @@ class AuthViewModel @Inject constructor(
 
     private val _state = MutableStateFlow(AuthState())
     val state: StateFlow<AuthState> = _state.asStateFlow()
+
+    init {
+        checkAuthState()
+    }
+
+    private fun checkAuthState() {
+        _state.update { it.copy(isAuthenticated = authRepository.currentUser != null, user = authRepository.currentUser) }
+    }
+
+    fun login(email: String, password: String) {
+        if (email.isBlank() || password.isBlank()) {
+            _state.update { it.copy(error = "Por favor, completa todos los campos") }
+            return
+        }
+        viewModelScope.launch {
+            _state.update { it.copy(isLoading = true, error = null) }
+            val result = authRepository.login(email, password)
+            result.onSuccess { user ->
+                _state.update { it.copy(isAuthenticated = true, isLoading = false, user = user, error = null) }
+            }.onFailure { e ->
+                _state.update { it.copy(isAuthenticated = false, isLoading = false, error = e.message) }
+            }
+        }
+    }
+
+    fun register(email: String, password: String) {
+        if (email.isBlank() || password.isBlank()) {
+            _state.update { it.copy(error = "Por favor, completa todos los campos") }
+            return
+        }
+        if (password.length < 6) {
+            _state.update { it.copy(error = "La contraseña debe tener al menos 6 caracteres") }
+            return
+        }
+        viewModelScope.launch {
+            _state.update { it.copy(isLoading = true, error = null) }
+            val result = authRepository.register(email, password)
+            result.onSuccess { user ->
+                _state.update { it.copy(isAuthenticated = true, isLoading = false, user = user, error = null) }
+            }.onFailure { e ->
+                _state.update { it.copy(isAuthenticated = false, isLoading = false, error = e.message) }
+            }
+        }
+    }
+
+    fun logout() {
+        viewModelScope.launch {
+            _state.update { it.copy(isLoading = true, error = null) }
+            val result = authRepository.logout()
+            result.onSuccess {
+                _state.update { it.copy(isAuthenticated = false, isLoading = false, user = null, error = null) }
+            }.onFailure { e ->
+                _state.update { it.copy(isLoading = false, error = e.message) }
+            }
+        }
+    }
+
+    fun sendPasswordResetEmail(email: String) {
+        if (email.isBlank()) {
+            _state.update { it.copy(error = "Por favor, introduce tu email") }
+            return
+        }
+        viewModelScope.launch {
+            _state.update { it.copy(isLoading = true, error = null) }
+            val result = authRepository.sendPasswordResetEmail(email)
+            result.onSuccess {
+                _state.update { it.copy(isLoading = false, error = null) }
+            }.onFailure { e ->
+                _state.update { it.copy(isLoading = false, error = e.message) }
+            }
+        }
+    }
 
     fun signIn(usernameOrEmail: String, password: String) {
         if (usernameOrEmail.isBlank() || password.isBlank()) {
@@ -191,6 +266,18 @@ class AuthViewModel @Inject constructor(
                 _state.update { it.copy(error = e.message) }
             } finally {
                 _state.update { it.copy(isLoading = false) }
+            }
+        }
+    }
+
+    private fun recoverPassword() {
+        viewModelScope.launch {
+            _state.update { it.copy(isLoading = true, error = null) }
+            try {
+                authRepository.recoverPassword(state.value.email)
+                _state.update { it.copy(isLoading = false, success = true) }
+            } catch (e: Exception) {
+                _state.update { it.copy(isLoading = false, error = e.message) }
             }
         }
     }

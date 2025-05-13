@@ -30,7 +30,6 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.example.flyaway.ui.navigation.AppDestinations
-import com.example.flyaway.ui.viewmodel.AuthEvent
 import com.example.flyaway.ui.viewmodel.AuthViewModel
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
@@ -103,7 +102,7 @@ fun LoginScreen(
                 CircularProgressIndicator()
             } else {
                 Button(
-                    onClick = { viewModel.onEvent(AuthEvent.Login(email, password)) },
+                    onClick = { viewModel.login(email, password) },
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Text("Login")

@@ -16,7 +16,6 @@ import com.example.flyaway.R
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.example.flyaway.ui.navigation.AppDestinations
-import com.example.flyaway.ui.viewmodel.AuthEvent
 import com.example.flyaway.ui.viewmodel.AuthViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -38,6 +37,7 @@ fun SettingsScreen(
                 Button(
                     onClick = { 
                         showLogoutDialog = false
+                        viewModel.logout()
                         onLogout()
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)

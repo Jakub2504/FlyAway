@@ -25,7 +25,13 @@ android {
     }
 
     buildTypes {
+        debug {
+            buildConfigField("String", "API_URL", "\"https://api.example.com/\"")
+            buildConfigField("String", "GROUP_ID", "\"G11\"")
+        }
         release {
+            buildConfigField("String", "API_URL", "\"https://api.example.com/\"")
+            buildConfigField("String", "GROUP_ID", "\"G11\"")
             isMinifyEnabled = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
         }
@@ -57,9 +63,14 @@ android {
 }
 
 dependencies {
+
     val composeBom = platform("androidx.compose:compose-bom:2024.02.00")
     implementation(composeBom)
     androidTestImplementation(composeBom)
+
+    //Retrofit
+    implementation ("com.squareup.retrofit2:retrofit:2.9.0")
+    implementation ("com.squareup.retrofit2:converter-gson:2.9.0")
 
     // Core Android
     implementation("androidx.core:core-ktx:1.12.0")
@@ -113,4 +124,9 @@ dependencies {
     androidTestImplementation("androidx.compose.ui:ui-test-junit4")
     debugImplementation("androidx.compose.ui:ui-tooling")
     debugImplementation("androidx.compose.ui:ui-test-manifest")
+
+    testImplementation ("com.squareup.okhttp3:mockwebserver:4.11.0")
+    testImplementation ("org.mockito:mockito-core:4.11.0")
+    testImplementation ("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.7.3")
+    implementation(kotlin("test"))
 }

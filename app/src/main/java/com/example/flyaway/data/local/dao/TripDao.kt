@@ -10,6 +10,9 @@ interface TripDao {
     @Query("SELECT * FROM trips WHERE userId = :userId ORDER BY createdAt DESC")
     fun getAllTripsByUserId(userId: String): Flow<List<TripEntity>>
 
+    @Query("SELECT * FROM trips")
+    fun getAllTrips(): Flow<List<TripEntity>>
+
     @Query("SELECT * FROM trips WHERE id = :tripId AND userId = :userId")
     fun getTripById(tripId: String, userId: String): Flow<TripEntity?>
 

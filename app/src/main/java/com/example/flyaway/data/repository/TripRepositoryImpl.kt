@@ -29,31 +29,12 @@ class TripRepositoryImpl @Inject constructor(
     private val activityDao: ActivityDao
 ) : TripRepository {
 
-    override fun getAllTrips(userId: String): Flow<List<Trip>> {
-        Log.d("TripRepositoryImpl", "Obteniendo todos los viajes para usuario: $userId")
-        return tripDao.getAllTripsByUserId(userId).map { tripEntities ->
-            Log.d("TripRepositoryImpl", "Entidades de viajes obtenidas: ${tripEntities.size}")
-            tripEntities.map { tripEntity ->
-                // Esta función carga solo los datos básicos del viaje
-                // Los días y actividades se cargarán bajo demanda
-                tripEntity.toDomainModel()
-            }
-        }
+    override suspend fun getAllTrips(userId: String): List<Trip> {
+        return tripDao.getAllTrips(userId).map { it.toDomain() }
     }
 
-    override fun getTripById(tripId: String, userId: String): Flow<Trip?> {
-        return tripDao.getTripById(tripId, userId).map { tripEntity ->
-            tripEntity?.let {
-                // Cuando solicitamos un viaje específico, cargamos los días
-                // y actividades asociadas
-                val days = dayDao.getDaysByTripId(it.id).first().map { dayEntity ->
-                    val activities = activityDao.getActivitiesByDayId(dayEntity.id).first()
-                        .map { activityEntity -> activityEntity.toDomainModel() }
-                    dayEntity.toDomainModel().copy(activities = activities)
-                }
-                it.toDomainModel().copy(days = days)
-            }
-        }
+    override suspend fun getTripById(id: String, userId: String): Trip? {
+        return tripDao.getTripById(id, userId)?.toDomain()
     }
 
     override suspend fun saveTrip(trip: Trip, userId: String): Trip {

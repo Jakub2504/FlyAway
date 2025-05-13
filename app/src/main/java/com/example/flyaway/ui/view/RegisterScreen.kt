@@ -30,9 +30,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.example.flyaway.ui.navigation.AppDestinations
-import com.example.flyaway.ui.viewmodel.AuthEvent
 import com.example.flyaway.ui.viewmodel.AuthViewModel
-import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 
 @Composable
@@ -132,43 +130,18 @@ fun RegisterScreen(
                 CircularProgressIndicator()
             } else {
                 Button(
-                    onClick = { 
-                        var isValid = true
-                        
-                        // Validar email
-                        if (email.isBlank()) {
-                            emailError = "Email is required"
-                            isValid = false
-                        } else if (!email.contains("@")) {
-                            emailError = "Invalid email format"
-                            isValid = false
-                        }
-                        
-                        // Validar contraseña
-                        if (password.isBlank()) {
-                            passwordError = "Password is required"
-                            isValid = false
-                        } else if (password.length < 6) {
-                            passwordError = "Password must be at least 6 characters"
-                            isValid = false
-                        }
-                        
-                        // Validar confirmación de contraseña
-                        if (confirmPassword.isBlank()) {
-                            confirmPasswordError = "Please confirm your password"
-                            isValid = false
-                        } else if (password != confirmPassword) {
-                            confirmPasswordError = "Passwords do not match"
-                            isValid = false
-                        }
-                        
-                        if (isValid) {
-                            viewModel.onEvent(AuthEvent.Register(email, password))
+                    onClick = {
+                        if (password == confirmPassword) {
+                            viewModel.register(email, password)
+                        } else {
+                            scope.launch {
+                                snackbarHostState.showSnackbar("Las contraseñas no coinciden")
+                            }
                         }
                     },
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Text("Register")
+                    Text("Registrarse")
                 }
             }
 

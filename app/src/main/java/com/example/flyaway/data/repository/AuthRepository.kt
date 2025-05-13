@@ -5,6 +5,7 @@ import com.google.firebase.auth.FirebaseAuthException
 import com.google.firebase.auth.FirebaseAuthInvalidCredentialsException
 import com.google.firebase.auth.FirebaseAuthInvalidUserException
 import com.google.firebase.auth.FirebaseAuthUserCollisionException
+import com.google.firebase.auth.FirebaseUser
 import kotlinx.coroutines.tasks.await
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -13,7 +14,10 @@ import javax.inject.Singleton
 class AuthRepository @Inject constructor(
     private val auth: FirebaseAuth
 ) {
-    suspend fun signIn(email: String, password: String) {
+    val currentUser: FirebaseUser?
+        get() = auth.currentUser
+
+    suspend fun login(email: String, password: String) {
         try {
             auth.signInWithEmailAndPassword(email, password).await()
         } catch (e: FirebaseAuthException) {
@@ -25,7 +29,7 @@ class AuthRepository @Inject constructor(
         }
     }
 
-    suspend fun signUp(email: String, password: String) {
+    suspend fun register(email: String, password: String) {
         try {
             // Intentamos crear el usuario directamente
             // Firebase lanzará una excepción si el email ya existe
@@ -38,7 +42,7 @@ class AuthRepository @Inject constructor(
         }
     }
 
-    suspend fun resetPassword(email: String) {
+    suspend fun recoverPassword(email: String) {
         try {
             // Intentamos enviar el email de recuperación
             // Firebase lanzará una excepción si el email no existe
@@ -51,9 +55,7 @@ class AuthRepository @Inject constructor(
         }
     }
 
-    fun signOut() {
+    fun logout() {
         auth.signOut()
     }
-
-    fun getCurrentUser() = auth.currentUser
 } 
