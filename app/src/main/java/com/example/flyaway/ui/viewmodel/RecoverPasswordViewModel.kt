@@ -42,11 +42,11 @@ class RecoverPasswordViewModel @Inject constructor(
         }
     }
 
-    internal fun recoverPassword() {
+    private fun recoverPassword() {
         viewModelScope.launch {
             _state.update { it.copy(isLoading = true, error = null) }
             try {
-                authRepository.resetPassword(state.value.email)
+                authRepository.recoverPassword(state.value.email)
                 _state.update { it.copy(isLoading = false, success = true) }
             } catch (e: Exception) {
                 _state.update { it.copy(isLoading = false, error = e.message) }

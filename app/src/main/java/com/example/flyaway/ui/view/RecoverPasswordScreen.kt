@@ -1,7 +1,6 @@
 package com.example.flyaway.ui.view
 
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Email
@@ -63,7 +62,7 @@ fun RecoverPasswordScreen(
                 label = { Text(stringResource(R.string.email)) },
                 leadingIcon = { Icon(Icons.Default.Email, contentDescription = null) },
                 singleLine = true,
-                keyboardOptions = KeyboardOptions.Default.copy(imeAction = ImeAction.Done),
+                imeAction = ImeAction.Done,
                 modifier = Modifier.fillMaxWidth()
             )
 
