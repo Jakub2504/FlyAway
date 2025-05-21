@@ -15,6 +15,8 @@ import com.example.flyaway.data.local.entity.ActivityEntity
 import com.example.flyaway.data.local.entity.DayEntity
 import com.example.flyaway.data.local.entity.TripEntity
 import com.example.flyaway.data.local.entity.UserEntity
+import com.google.gson.Gson
+import com.google.gson.reflect.TypeToken
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.LocalTime
@@ -28,7 +30,7 @@ import java.time.format.DateTimeFormatter
         UserEntity::class,
         AccessLogEntity::class
     ],
-    version = 4,
+    version = 5,
     exportSchema = false
 )
 @TypeConverters(Converters::class)
@@ -117,4 +119,15 @@ class Converters {
     fun formatDateTime(dateTime: LocalDateTime?): String {
         return dateTime?.format(dateTimeFormatter) ?: ""
     }
-} 
+
+    @TypeConverter
+    fun fromList(list: List<String>?): String {
+        return Gson().toJson(list)
+    }
+
+    @TypeConverter
+    fun toList(json: String?): List<String> {
+        val type = object : TypeToken<List<String>>() {}.type
+        return Gson().fromJson(json, type) ?: emptyList()
+    }
+}

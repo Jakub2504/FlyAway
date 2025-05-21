@@ -25,4 +25,7 @@ interface TripRepository {
     // Operaciones para Activity
     suspend fun saveActivity(activity: Activity, userId: String): Day?
     suspend fun deleteActivity(dayId: String, activityId: String, userId: String): Day?
+
+    // Operaciones para imágenes
+    suspend fun updateTripImages(tripId: String, images: List<String>, userId: String)
 } 

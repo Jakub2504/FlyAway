@@ -11,12 +11,12 @@ import java.time.LocalDate
     indices = [Index("userId")]
 )
 data class TripEntity(
-    @PrimaryKey
-    val id: String,
+    @PrimaryKey val id: String,
     val userId: String,
     val name: String,
     val destination: String,
     val startDate: LocalDate,
     val endDate: LocalDate,
-    val createdAt: LocalDate
-) 
+    val createdAt: LocalDate,
+    val images: List<String> = emptyList() // Nueva columna
+)

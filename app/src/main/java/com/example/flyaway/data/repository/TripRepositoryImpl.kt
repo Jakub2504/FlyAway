@@ -41,6 +41,12 @@ class TripRepositoryImpl @Inject constructor(
         }
     }
 
+    override suspend fun updateTripImages(tripId: String, images: List<String>, userId: String) {
+        val tripEntity = tripDao.getTripById(tripId, userId).first() ?: return
+        val updatedTrip = tripEntity.copy(images = images)
+        tripDao.updateTrip(updatedTrip)
+    }
+
     override fun getTripById(tripId: String, userId: String): Flow<Trip?> {
         return tripDao.getTripById(tripId, userId).map { tripEntity ->
             tripEntity?.let {
@@ -55,6 +61,8 @@ class TripRepositoryImpl @Inject constructor(
             }
         }
     }
+
+
 
     override suspend fun saveTrip(trip: Trip, userId: String): Trip {
         Log.d("TripRepositoryImpl", "Guardando viaje: ${trip.id}, usuario: $userId, nombre: ${trip.name}, destino: ${trip.destination}")

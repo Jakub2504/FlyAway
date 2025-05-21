@@ -24,4 +24,6 @@ class TripRepository @Inject constructor(
     suspend fun deleteTrip(tripId: String, userId: String) {
         tripRepositoryImpl.deleteTrip(tripId, userId)
     }
+
+
 } 

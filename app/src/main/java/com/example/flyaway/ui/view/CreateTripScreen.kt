@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
@@ -72,7 +73,7 @@ fun CreateTripScreen(
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
     val dateFormatter = DateTimeFormatter.ofPattern("dd/MM/yyyy")
-    
+
     // Efecto para manejar la navegación una vez creado el viaje
     LaunchedEffect(state.isSuccess) {
         if (state.isSuccess) {
@@ -81,7 +82,7 @@ fun CreateTripScreen(
             viewModel.onEvent(CreateTripEvent.OnResetState)
         }
     }
-    
+
     // Efecto para mostrar errores en el snackbar
     LaunchedEffect(state.error) {
         state.error?.let { error ->
@@ -90,7 +91,7 @@ fun CreateTripScreen(
             }
         }
     }
-    
+
     // Diálogo para seleccionar la fecha de inicio
     if (state.showStartDatePicker) {
         ShowDatePicker(
@@ -101,7 +102,7 @@ fun CreateTripScreen(
             minDate = LocalDate.now()
         )
     }
-    
+
     // Diálogo para seleccionar la fecha de fin
     if (state.showEndDatePicker) {
         ShowDatePicker(
@@ -112,7 +113,7 @@ fun CreateTripScreen(
             minDate = state.startDate ?: LocalDate.now()
         )
     }
-    
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -120,7 +121,7 @@ fun CreateTripScreen(
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(
-                            Icons.Default.ArrowBack,
+                            imageVector = Icons.Default.ArrowBack,
                             contentDescription = stringResource(R.string.back)
                         )
                     }
@@ -129,24 +130,79 @@ fun CreateTripScreen(
         },
         snackbarHost = { SnackbarHost(snackbarHostState) }
     ) { paddingValues ->
-        Box(
+        Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
+                .verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            CreateTripContent(
-                state = state,
-                onEvent = viewModel::onEvent,
-                dateFormatter = dateFormatter,
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(16.dp)
-            )
-            
-            if (state.isLoading) {
-                CircularProgressIndicator(
-                    modifier = Modifier.align(Alignment.Center)
+            // Campos del formulario
+            OutlinedTextField(
+                value = state.name,
+                onValueChange = { viewModel.onEvent(CreateTripEvent.OnNameChange(it)) },
+                label = { Text(stringResource(R.string.trip_name)) },
+                isError = state.nameError != null,
+                modifier = Modifier.fillMaxWidth(),
+                keyboardOptions = KeyboardOptions(
+                    capitalization = KeyboardCapitalization.Words,
+                    imeAction = ImeAction.Next
                 )
+            )
+            state.nameError?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+
+            OutlinedTextField(
+                value = state.destination,
+                onValueChange = { viewModel.onEvent(CreateTripEvent.OnDestinationChange(it)) },
+                label = { Text(stringResource(R.string.destination)) },
+                isError = state.destinationError != null,
+                modifier = Modifier.fillMaxWidth(),
+                keyboardOptions = KeyboardOptions(
+                    capitalization = KeyboardCapitalization.Words,
+                    imeAction = ImeAction.Next
+                )
+            )
+            state.destinationError?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+
+            // Selección de fechas
+            DatePickerField(
+                label = stringResource(R.string.start_date),
+                date = state.startDate,
+                onDateSelected = { selectedDate ->
+                    viewModel.onEvent(CreateTripEvent.OnDateSelected(selectedDate, true))
+                }
+            )
+            state.dateError?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+
+            DatePickerField(
+                label = stringResource(R.string.end_date),
+                date = state.endDate,
+                onDateSelected = { selectedDate ->
+                    viewModel.onEvent(CreateTripEvent.OnDateSelected(selectedDate, false))
+                }
+            )
+
+            // Botón para guardar el viaje
+            Button(
+                onClick = { viewModel.onEvent(CreateTripEvent.OnCreateTrip) },
+                modifier = Modifier.fillMaxWidth(),
+                enabled = !state.isLoading
+            ) {
+                if (state.isLoading) {
+                    Box(
+                        modifier = Modifier
+                            .size(24.dp)
+                            .align(Alignment.CenterVertically),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        CircularProgressIndicator(
+                            color = MaterialTheme.colorScheme.onPrimary,
+                            strokeWidth = 2.dp
+                        )
+                    }
+                } else {
+                    Text(stringResource(R.string.save))
+                }
             }
         }
     }

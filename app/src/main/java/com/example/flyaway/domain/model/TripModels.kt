@@ -9,13 +9,14 @@ import java.util.UUID
 // Modelo para viajes
 @RequiresApi(Build.VERSION_CODES.O)
 data class Trip(
-    val id: String = UUID.randomUUID().toString(),
+    val id: String,
     val name: String,
     val destination: String,
     val startDate: LocalDate,
     val endDate: LocalDate,
+    val createdAt: LocalDate,
     val days: List<Day> = emptyList(),
-    val createdAt: LocalDate = LocalDate.now()
+    val images: List<String> = emptyList() // Nueva propiedad
 )
 
 // Modelo para días en el itinerario

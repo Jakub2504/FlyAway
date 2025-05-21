@@ -9,12 +9,12 @@ plugins {
 
 android {
     namespace = "com.example.flyaway"
-    compileSdk = 34
+    compileSdk = 35
 
     defaultConfig {
         applicationId = "com.example.flyaway"
         minSdk = 26
-        targetSdk = 34
+        targetSdk = 35
         versionCode = 1
         versionName = "0.2.0"
 
@@ -25,8 +25,14 @@ android {
     }
 
     buildTypes {
+        debug {
+            buildConfigField("String", "API_URL", "\"http://13.39.162.212/\"")
+            buildConfigField("String", "GROUP_ID", "\"G11\"")
+        }
         release {
-            isMinifyEnabled = true
+            buildConfigField("String", "API_URL", "\"http://13.39.162.212/\"")
+            buildConfigField("String", "GROUP_ID", "\"G11\"")
+            isMinifyEnabled = false
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
         }
     }
@@ -43,6 +49,7 @@ android {
     buildFeatures {
         compose = true
         viewBinding = true
+        buildConfig = true
     }
 
     composeOptions {
@@ -57,9 +64,15 @@ android {
 }
 
 dependencies {
+    implementation(libs.androidx.lifecycle.viewmodel.android)
+    implementation(libs.junit.junit)
     val composeBom = platform("androidx.compose:compose-bom:2024.02.00")
     implementation(composeBom)
     androidTestImplementation(composeBom)
+
+    implementation ("io.coil-kt:coil-compose:2.4.0")
+
+    implementation ("com.squareup.retrofit2:converter-gson:2.9.0")
 
     // Core Android
     implementation("androidx.core:core-ktx:1.12.0")
@@ -81,6 +94,9 @@ dependencies {
     kapt("com.google.dagger:hilt-android-compiler:2.50")
     implementation("androidx.hilt:hilt-navigation-compose:1.1.0")
     kapt("androidx.hilt:hilt-compiler:1.1.0")
+
+    implementation ("com.google.accompanist:accompanist-pager:0.30.1")
+    implementation ("com.google.accompanist:accompanist-pager-indicators:0.30.1")
 
     // Room
     implementation("androidx.room:room-runtime:2.6.1")
@@ -113,4 +129,5 @@ dependencies {
     androidTestImplementation("androidx.compose.ui:ui-test-junit4")
     debugImplementation("androidx.compose.ui:ui-tooling")
     debugImplementation("androidx.compose.ui:ui-test-manifest")
+    implementation(kotlin("test"))
 }

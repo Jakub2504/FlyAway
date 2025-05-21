@@ -1,7 +1,11 @@
 package com.example.flyaway
 
 import android.content.Context
+import com.example.flyaway.data.repository.HotelRepositoryImpl
+import com.example.flyaway.data.repository.TaskRepositoryImpl
 import com.example.flyaway.data.repository.TripRepositoryImpl
+import com.example.flyaway.domain.repository.HotelRepository
+import com.example.flyaway.domain.repository.TaskRepository
 import com.example.flyaway.domain.repository.TripRepository
 import com.example.flyaway.utils.PreferencesRepository
 import dagger.Binds
@@ -35,5 +39,18 @@ object AppModule {
         abstract fun bindTripRepository(
             tripRepositoryImpl: TripRepositoryImpl
         ): TripRepository
+
+        @Binds
+        @Singleton
+        abstract fun bindHotelRepository(
+            hotelRepositoryImpl: HotelRepositoryImpl
+        ): HotelRepository
+
+        @Binds
+        @Singleton
+        abstract fun bindTaskRepository(
+            taskRepositoryImpl: TaskRepositoryImpl
+        ): TaskRepository
+
     }
 } 

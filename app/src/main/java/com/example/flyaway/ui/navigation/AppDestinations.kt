@@ -15,6 +15,9 @@ object AppDestinations {
     const val ABOUT_ROUTE = "about"
     const val TERMS_ROUTE = "terms"
     const val CREATE_TRIP_ROUTE = "create_trip"
+    const val TRIPS_ROUTE = "trips"
+    const val RESERVATIONS_ROUTE = "reservations"
+    const val HOTEL_ROUTE = "hotel"
     
     // Rutas con parámetros
     object TripDetails {

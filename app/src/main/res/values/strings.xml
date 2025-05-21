@@ -113,7 +113,7 @@
     <string name="about">About</string>
     <string name="about_title">About Us</string>
     <string name="about_description">FlyAway is your app for easy and quick trip planning.</string>
-    <string name="app_version">Version 0.4.0</string>
+    <string name="app_version">Version 0.5.0</string>
     <string name="version">Version</string>
     <string name="developers">Jakub Wysocki</string>
     <string name="about_us_content">FlyAway is a travel planning application designed to make your trip organization effortless. Our mission is to help you create memorable travel experiences with minimal hassle.</string>
@@ -150,4 +150,10 @@
     <string name="delete_activity">Delete Activity</string>
     <string name="delete_activity_confirmation">Are you sure you want to delete this activity? This action cannot be undone.</string>
     <string name="day_number_date">Day %1$d - %2$s</string>
+    <string name="add_imagen">Add image</string>
+    <string name="Open_calendar">Open calendar</string>
+    <string name="See_details">See details</string>
+    <string name="Hotel_details">Hotel details</string>
+    <string name="Back">Back</string>
+    <string name="Rooms_not_found">Rooms not found</string>
 </resources>

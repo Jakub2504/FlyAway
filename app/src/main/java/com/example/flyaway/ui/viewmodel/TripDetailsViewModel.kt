@@ -3,6 +3,8 @@ package com.example.flyaway.ui.viewmodel
 import android.os.Build
 import android.util.Log
 import androidx.annotation.RequiresApi
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -17,6 +19,10 @@ import com.example.flyaway.domain.usecase.SaveTripUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import android.net.Uri
+import android.content.Context
+import java.io.File
+import java.io.FileOutputStream
 import java.time.LocalDate
 import java.time.LocalTime
 import java.time.format.DateTimeFormatter
@@ -34,7 +40,7 @@ class TripDetailsViewModel @Inject constructor(
     private val deleteTripUseCase: DeleteTripUseCase,
     private val authRepository: AuthRepository
 ) : ViewModel() {
-    private val _state = MutableStateFlow(TripDetailsState())
+    private var _state = MutableStateFlow(TripDetailsState())
     val state: StateFlow<TripDetailsState> = _state.asStateFlow()
     
     private val dateFormatter = DateTimeFormatter.ofPattern("dd/MM/yyyy")
@@ -182,6 +188,12 @@ class TripDetailsViewModel @Inject constructor(
                 is TripDetailsEvent.OnDeleteActivityDismiss -> {
                     _state.update { it.copy(showDeleteActivityDialog = false) }
                 }
+                is TripDetailsEvent.OnAddImagesClick -> {
+                    _state.update { it.copy(images = event.images) }
+                }
+                is TripDetailsEvent.OnImagesSelected -> {
+                    updateImages(event.context, event.images)
+                }
                 is TripDetailsEvent.OnTripNameChange -> {
                     _state.update { it.copy(editedTripName = event.name) }
                 }
@@ -203,28 +215,20 @@ class TripDetailsViewModel @Inject constructor(
             }
         }
     }
-    
-    private fun loadTrip() {
+
+    fun loadTrip() {
         viewModelScope.launch {
-            _state.update { it.copy(isLoading = true, error = null) }
             try {
+                _state.update { it.copy(isLoading = true, error = null) }
                 val userId = authRepository.getCurrentUser()?.uid ?: throw Exception("Usuario no autenticado")
-                getTripByIdUseCase(tripId, userId)
-                    .catch { e: Throwable ->
-                        Log.e("TripDetailsViewModel", "Error al cargar viaje: ${e.message}")
-                        _state.update { it.copy(error = e.message, isLoading = false) }
-                    }
-                    .collect { trip: Trip? ->
-                        Log.d("TripDetailsViewModel", "Viaje cargado: ${trip?.id}")
-                        _state.update { it.copy(trip = trip, isLoading = false) }
-                    }
+                val trip = tripRepository.getTripById(tripId, userId).firstOrNull()
+                _state.update { it.copy(trip = trip, isLoading = false) }
             } catch (e: Exception) {
-                Log.e("TripDetailsViewModel", "Error al obtener usuario: ${e.message}")
                 _state.update { it.copy(error = e.message, isLoading = false) }
             }
         }
     }
-    
+
     private fun loadTripById(id: String) {
         viewModelScope.launch {
             _state.update { it.copy(isLoading = true, error = null) }
@@ -296,7 +300,44 @@ class TripDetailsViewModel @Inject constructor(
             }
         }
     }
-    
+
+
+    private fun saveUriToInternalStorage(context: Context, uri: String, fileName: String): String? {
+        return try {
+            val inputStream = context.contentResolver.openInputStream(Uri.parse(uri))
+            val file = File(context.filesDir, fileName)
+            val outputStream = FileOutputStream(file)
+
+            inputStream?.use { input ->
+                outputStream.use { output ->
+                    input.copyTo(output)
+                }
+            }
+            file.absolutePath
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null
+        }
+    }
+
+    fun updateImages(context: Context, newImages: List<String>) {
+        viewModelScope.launch {
+            try {
+                val currentImages = _state.value.trip?.images ?: emptyList()
+                val updatedImages = newImages.mapIndexed { index, uri ->
+                    saveUriToInternalStorage(context, uri, "image_$index.jpg") ?: uri
+                }
+                _state.update { currentState ->
+                    currentState.copy(
+                        trip = currentState.trip?.copy(images = currentImages + updatedImages)
+                    )
+                }
+            } catch (e: Exception) {
+                _state.update { it.copy(error = e.message) }
+            }
+        }
+    }
+
     private fun addActivity() {
         viewModelScope.launch {
             val dayId = _state.value.selectedDayId ?: return@launch
@@ -614,6 +655,8 @@ data class TripDetailsState(
     // Estado para el diálogo de añadir día
     val showAddDayDialog: Boolean = false,
     val newDayDate: LocalDate = LocalDate.now(),
+
+    val images: List<String> = emptyList(),
     
     // Estado para el diálogo de añadir actividad
     val showAddActivityDialog: Boolean = false,
@@ -659,7 +702,10 @@ sealed class TripDetailsEvent {
     data class OnActivityStartTimeChange(val time: LocalTime) : TripDetailsEvent()
     data class OnActivityEndTimeChange(val time: LocalTime) : TripDetailsEvent()
     data object OnSaveActivity : TripDetailsEvent()
-    
+
+    data class OnAddImagesClick(val images: List<String>) : TripDetailsEvent()
+    data class OnImagesSelected(val tripId: String, val images: List<String>, val context: Context) : TripDetailsEvent()
+
     data object OnEditTripClick : TripDetailsEvent()
     data object OnDeleteTripClick : TripDetailsEvent()
     data object OnDeleteTripConfirm : TripDetailsEvent()

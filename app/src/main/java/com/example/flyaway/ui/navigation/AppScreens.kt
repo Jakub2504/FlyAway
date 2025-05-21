@@ -18,7 +18,18 @@ sealed class AppScreens(val route: String) {
     }
     object ProfileScreen : AppScreens("profile_screen")
     object AboutScreen : AppScreens("about_screen")
+    object HomeHotel : AppScreens("home_hotel")
     object LanguageSettingsScreen : AppScreens("language_settings")
+    object NotificationsScreen : AppScreens("notifications_screen")
+    object PrivacyPolicyScreen : AppScreens("privacy_policy_screen")
+    object ContactUsScreen : AppScreens("contact_us_screen")
+    object FeedbackScreen : AppScreens("feedback_screen")
+    object AllReservationsScreen : AppScreens("all_reservations_screen")
+    object MyReservationsScreen : AppScreens("my_reservations_screen")
+    object HotelDetailsScreen : AppScreens("hotel/{hotelId}/{startDate}/{endDate}") {
+        fun createRoute(hotelId: String, startDate: String, endDate: String) =
+            "hotel/$hotelId/$startDate/$endDate"
+    }
     
     // Añadir más pantallas según se necesiten
 } 

@@ -1,6 +1,7 @@
 package com.example.flyaway.ui.view
 
 import android.os.Build
+import android.util.Log
 import androidx.annotation.RequiresApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -11,8 +12,16 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
+import android.content.Context
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
+import coil.compose.rememberAsyncImagePainter
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -45,10 +54,14 @@ fun TripDetailsScreen(
     onNavigateToHome: () -> Unit
 ) {
     val state by viewModel.state.collectAsState()
-    
+    val images = remember { mutableStateListOf<String>() }
+    val context = LocalContext.current
+
     // Efecto para cargar el viaje usando el ID
     LaunchedEffect(tripId) {
         viewModel.onEvent(TripDetailsEvent.LoadTrip(tripId))
+        viewModel.onEvent(TripDetailsEvent.OnImagesSelected(tripId, images, context))
+
     }
     
     // Efecto para navegar a Home cuando el viaje se ha eliminado
@@ -230,6 +243,22 @@ internal fun TripDetailsContent(
     paddingValues: PaddingValues,
     viewModel: TripDetailsViewModel
 ) {
+    val context = LocalContext.current
+
+    val imagePickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetMultipleContents()
+    ) { uris ->
+        uris?.let {
+            viewModel.onEvent(
+                TripDetailsEvent.OnImagesSelected(
+                    tripId = state.trip?.id ?: return@let,
+                    images = it.map { uri -> uri.toString() },
+                    context = context // Usa el contexto obtenido
+                )
+            )
+        }
+    }
+
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -258,9 +287,48 @@ internal fun TripDetailsContent(
             }
         } else {
             if (state.trip != null) {
-                displayTripContent(state.trip!!, viewModel)
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(16.dp)
+                ) {
+                    // Botón para seleccionar imágenes
+                    Button(
+                        onClick = { imagePickerLauncher.launch("image/*") },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(stringResource(R.string.add_imagen))
+                    }
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    // Mostrar imágenes seleccionadas y de la base de datos
+                    if (state.trip?.images?.isNotEmpty() == true) {
+                        LazyRow(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            items(state.trip.images) { imageUrl ->
+                                Image(
+                                    painter = rememberAsyncImagePainter(
+                                        model = if (imageUrl.startsWith("file://")) imageUrl else "file://$imageUrl"
+                                    ),
+                                    contentDescription = null,
+                                    modifier = Modifier
+                                        .size(100.dp)
+                                        .clip(RoundedCornerShape(8.dp))
+                                        .border(1.dp, MaterialTheme.colorScheme.primary, RoundedCornerShape(8.dp))
+                                )
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    // Mostrar contenido del viaje
+                    displayTripContent(state.trip, viewModel)
+                }
             } else {
-                // Si no hay viaje y no está cargando ni hay error, mostrar mensaje
                 Text(
                     text = stringResource(R.string.no_trip_found),
                     modifier = Modifier

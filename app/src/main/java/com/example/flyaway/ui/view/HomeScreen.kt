@@ -44,6 +44,8 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalDrawerSheet
 import androidx.compose.material3.ModalNavigationDrawer
+import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -82,6 +84,8 @@ import kotlinx.coroutines.launch
 import java.time.format.DateTimeFormatter
 import java.time.temporal.ChronoUnit
 import androidx.compose.runtime.livedata.observeAsState
+import androidx.navigation.compose.currentBackStackEntryAsState
+import com.example.flyaway.ui.navigation.BottomNavScreen
 
 /**
  * Pantalla principal de la aplicación.
@@ -99,64 +103,65 @@ fun HomeScreen(
     viewModel: HomeViewModel = hiltViewModel()
 ) {
     val state by viewModel.state.collectAsState()
-    val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
-    val scope = rememberCoroutineScope()
-    var showSettingsMenu by remember { mutableStateOf(false) }
+    val tabs = listOf(
+        BottomNavScreen.Home,
+        BottomNavScreen.HomeHotel
+    )
+    val currentBackStackEntry = navController.currentBackStackEntryAsState()
+    val currentDestination = currentBackStackEntry.value?.destination
 
-    // Observar cuando se crea un nuevo viaje
-    LaunchedEffect(Unit) {
-        viewModel.onEvent(HomeEvent.LoadTrips)
-    }
-
-    val tripCreated = navController.currentBackStackEntry
-        ?.savedStateHandle
-        ?.getLiveData<Boolean>("trip_created")
-        ?.observeAsState()
-    if (tripCreated?.value == true) {
-        viewModel.onEvent(HomeEvent.LoadTrips)
-        navController.currentBackStackEntry?.savedStateHandle?.set("trip_created", false)
-    }
-
-    val lifecycleOwner = LocalLifecycleOwner.current
-    DisposableEffect(lifecycleOwner) {
-        val observer = LifecycleEventObserver { _, event ->
-            if (event == Lifecycle.Event.ON_RESUME) {
-                viewModel.onEvent(HomeEvent.LoadTrips)
+    Scaffold(
+        bottomBar = {
+            NavigationBar {
+                tabs.forEach { screen ->
+                    NavigationBarItem(
+                        selected = currentDestination?.route == screen.route,
+                        onClick = {
+                            navController.navigate(screen.route) {
+                                popUpTo(navController.graph.startDestinationId) {
+                                    saveState = true
+                                }
+                                launchSingleTop = true
+                                restoreState = true
+                            }
+                        },
+                        icon = { Icon(screen.icon, contentDescription = screen.label) },
+                        label = { Text(screen.label) }
+                    )
+                }
+            }
+        },
+        floatingActionButton = {
+            FloatingActionButton(
+                onClick = onNavigateToCreateTrip,
+                containerColor = MaterialTheme.colorScheme.primary
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.Add,
+                    contentDescription = stringResource(R.string.create_trip)
+                )
             }
         }
-        lifecycleOwner.lifecycle.addObserver(observer)
-        onDispose {
-            lifecycleOwner.lifecycle.removeObserver(observer)
-        }
+    ) { padding ->
+        HomeContent(
+            state = state,
+            drawerState = rememberDrawerState(initialValue = DrawerValue.Closed),
+            showSettingsMenu = false,
+            onShowSettingsMenu = {},
+            onOpenDrawer = {},
+            onCloseDrawer = {},
+            onNavigateToCreateTrip = onNavigateToCreateTrip,
+            onNavigateToTripDetails = onNavigateToTripDetails,
+            onNavigateToSettings = onNavigateToSettings,
+            onNavigateToAboutUs = onNavigateToAboutUs,
+            onNavigateToTerms = onNavigateToTerms,
+            onTripClick = { tripId ->
+                viewModel.onEvent(HomeEvent.TripSelected(tripId))
+                onNavigateToTripDetails(tripId)
+            },
+            onRefresh = { viewModel.onEvent(HomeEvent.LoadTrips) }
+        )
     }
-
-    HomeContent(
-        state = state,
-        drawerState = drawerState,
-        showSettingsMenu = showSettingsMenu,
-        onShowSettingsMenu = { showSettingsMenu = it },
-        onOpenDrawer = { scope.launch { drawerState.open() } },
-        onCloseDrawer = { scope.launch { drawerState.close() } },
-        onNavigateToCreateTrip = onNavigateToCreateTrip,
-        onNavigateToTripDetails = onNavigateToTripDetails,
-        onNavigateToSettings = {
-            showSettingsMenu = false
-            onNavigateToSettings()
-        },
-        onNavigateToAboutUs = {
-            scope.launch { drawerState.close() }
-            onNavigateToAboutUs()
-        },
-        onNavigateToTerms = {
-            scope.launch { drawerState.close() }
-            onNavigateToTerms()
-        },
-        onTripClick = { tripId ->
-            viewModel.onEvent(HomeEvent.TripSelected(tripId))
-            onNavigateToTripDetails(tripId)
-        },
-        onRefresh = { viewModel.onEvent(HomeEvent.LoadTrips) }
-    )
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -176,13 +181,18 @@ private fun HomeContent(
     onTripClick: (String) -> Unit,
     onRefresh: () -> Unit
 ) {
+    val coroutineScope = rememberCoroutineScope()
+    var showSettingsMenu by remember { mutableStateOf(false) }
+
     ModalNavigationDrawer(
         drawerState = drawerState,
         drawerContent = {
             AppDrawerContent(
                 onNavigateToAboutUs = onNavigateToAboutUs,
                 onNavigateToTerms = onNavigateToTerms,
-                onClose = onCloseDrawer
+                onClose = {
+                    coroutineScope.launch { drawerState.close() }
+                }
             )
         }
     ) {
@@ -191,7 +201,9 @@ private fun HomeContent(
                 TopAppBar(
                     title = { Text(stringResource(R.string.app_name)) },
                     navigationIcon = {
-                        IconButton(onClick = onOpenDrawer) {
+                        IconButton(onClick = {
+                            coroutineScope.launch { drawerState.open() }
+                        }) {
                             Icon(
                                 Icons.Default.Menu,
                                 contentDescription = stringResource(R.string.menu)
@@ -201,7 +213,7 @@ private fun HomeContent(
                     actions = {
                         Box {
                             IconButton(
-                                onClick = { onShowSettingsMenu(true) }
+                                onClick = { showSettingsMenu = true }
                             ) {
                                 Icon(
                                     Icons.Default.Settings,
@@ -211,14 +223,17 @@ private fun HomeContent(
 
                             DropdownMenu(
                                 expanded = showSettingsMenu,
-                                onDismissRequest = { onShowSettingsMenu(false) }
+                                onDismissRequest = { showSettingsMenu = false }
                             ) {
                                 DropdownMenuItem(
                                     text = { Text(stringResource(R.string.settings)) },
                                     leadingIcon = {
                                         Icon(Icons.Default.Settings, contentDescription = null)
                                     },
-                                    onClick = onNavigateToSettings
+                                    onClick = {
+                                        showSettingsMenu = false
+                                        onNavigateToSettings()
+                                    }
                                 )
 
                                 DropdownMenuItem(
@@ -227,9 +242,7 @@ private fun HomeContent(
                                         Icon(Icons.Default.Person, contentDescription = null)
                                     },
                                     onClick = {
-                                        onShowSettingsMenu(false)
-                                        // Aquí debería ir la navegación al perfil, pero como no la tenemos como
-                                        // parámetro, usamos la navegación a configuración
+                                        showSettingsMenu = false
                                         onNavigateToSettings()
                                     }
                                 )
@@ -266,7 +279,7 @@ private fun HomeContent(
                             Icon(
                                 imageVector = Icons.Filled.Flight,
                                 contentDescription = null,
-                                modifier = Modifier.Companion.size(72.dp),
+                                modifier = Modifier.size(72.dp),
                                 tint = MaterialTheme.colorScheme.primary
                             )
 

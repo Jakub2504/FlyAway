@@ -7,6 +7,8 @@ import androidx.sqlite.db.SupportSQLiteDatabase
 import com.example.flyaway.data.local.FlyAwayDatabase
 import com.example.flyaway.data.local.dao.ActivityDao
 import com.example.flyaway.data.local.dao.DayDao
+import com.example.flyaway.data.local.dao.SubTaskDao
+import com.example.flyaway.data.local.dao.TaskDao
 import com.example.flyaway.data.local.dao.TripDao
 import dagger.Module
 import dagger.Provides
@@ -66,4 +68,16 @@ object DatabaseModule {
     @Provides
     @Singleton
     fun provideActivityDao(database: FlyAwayDatabase): ActivityDao = database.activityDao()
+
+    @Provides
+    @Singleton
+    fun provideTaskDao(appDatabase: AppDatabase): TaskDao {
+        return appDatabase.taskDao()
+    }
+
+    @Provides
+    @Singleton
+    fun provideSubTaskDao(appDatabase: AppDatabase): SubTaskDao {
+        return appDatabase.subTaskDao()
+    }
 }
